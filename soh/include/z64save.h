@@ -199,6 +199,7 @@ typedef struct {
     u8 issunsongload;
     u8 isfaroreswind;
     u8 isHorseEvent;
+    u8 kzhasmweeped;
 } SaveContext; // size = 0x1428
 
 typedef enum {

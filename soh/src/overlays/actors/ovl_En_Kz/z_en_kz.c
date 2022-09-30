@@ -73,8 +73,8 @@ static AnimationInfo sAnimationInfo[] = {
 u16 EnKz_GetTextNoMaskChild(GlobalContext* globalCtx, EnKz* this) {
     Player* player = GET_PLAYER(globalCtx);
 
-    if ((gSaveContext.n64ddFlag && Flags_GetRandomizerInf(RAND_INF_DUNGEONS_DONE_JABU_JABUS_BELLY)) ||
-        (!gSaveContext.n64ddFlag && CHECK_QUEST_ITEM(QUEST_ZORA_SAPPHIRE))) {
+    if ((gSaveContext.n64ddFlag && Flags_GetRandomizerInf(RAND_INF_DUNGEONS_DONE_JABU_JABUS_BELLY)) && gSaveContext.kzhasmweeped == 1|| //test
+        (!gSaveContext.n64ddFlag && CHECK_QUEST_ITEM(QUEST_ZORA_SAPPHIRE)) && gSaveContext.kzhasmweeped == 1) {
         return 0x402B;
     } else if (gSaveContext.eventChkInf[3] & 8) {
         return 0x401C;
@@ -417,7 +417,7 @@ void EnKz_Mweep(EnKz* this, GlobalContext* globalCtx) {
     Vec3f unused = { 0.0f, 0.0f, 0.0f };
     Vec3f pos;
     Vec3f initPos;
-
+    gSaveContext.kzhasmweeped = 1;
     pos = this->actor.world.pos;
     initPos = this->actor.home.pos;
     pos.y += 60.0f;
