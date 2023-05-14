@@ -4,6 +4,7 @@
 #include "overlays/actors/ovl_En_Zl3/z_en_zl3.h"
 #include "overlays/actors/ovl_Bg_Ganon_Otyuka/z_bg_ganon_otyuka.h"
 #include "overlays/actors/ovl_En_Bom/z_en_bom.h"
+#include "textures/boss_title_cards/object_ganon.h"
 #include "assets/objects/object_ganon/object_ganon.h"
 #include "assets/objects/object_ganon_anime1/object_ganon_anime1.h"
 #include "assets/objects/object_ganon_anime2/object_ganon_anime2.h"
@@ -118,6 +119,8 @@ BossGanon* sBossGanonGanondorf;
 EnZl3* sBossGanonZelda;
 
 GanondorfEffect sBossGanonEffectBuf[200];
+
+static u8 sWindowShatterTex[2048] = { {0} };
 
 void BossGanonEff_SpawnWindowShard(PlayState* play, Vec3f* pos, Vec3f* velocity, f32 scale) {
     static Color_RGB8 shardColors[] = { { 255, 175, 85 }, { 155, 205, 155 }, { 155, 125, 55 } };
@@ -453,6 +456,13 @@ void BossGanon_Init(Actor* thisx, PlayState* play2) {
             Collider_SetCylinder(play, &this->collider, thisx, &sLightBallCylinderInit);
         }
     }
+
+    for (int i = 0; i < ARRAY_COUNT(sWindowShatterTex); i++) {
+        sWindowShatterTex[i] = 0;
+    }
+
+    Gfx_RegisterBlendedTexture(ganon_boss_sceneTex_006C18, sWindowShatterTex, NULL);
+    Gfx_RegisterBlendedTexture(ganon_boss_sceneTex_007418, sWindowShatterTex, NULL);
 }
 
 void BossGanon_Destroy(Actor* thisx, PlayState* play) {
@@ -956,6 +966,19 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
             }
 
             if ((this->csTimer > 80) && (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
+                // In rando, skip past dark waves section straight to title card phase of the cutscene.
+                if (gSaveContext.n64ddFlag) {
+                    this->timers[2] = 30;
+                    this->csCamAt.x = this->unk_1FC.x - 10.0f;
+                    this->csCamAt.y = this->unk_1FC.y + 30.0f;
+                    this->csCamAt.z = this->unk_1FC.z;
+                    this->fwork[GDF_VORTEX_ALPHA] = 0.0f;
+                    this->fwork[GDF_VORTEX_SCALE] = 0.0f;
+                    this->csState = 22;
+                    this->csTimer = 0;
+                    break;
+                }
+
                 this->csState = 20;
                 this->csTimer = 0;
 
@@ -1082,7 +1105,7 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
 
                 if (!(gSaveContext.eventChkInf[7] & 0x100)) {
                     TitleCard_InitBossName(play, &play->actorCtx.titleCtx,
-                                           SEGMENTED_TO_VIRTUAL(gGanondorfTitleCardTex), 160, 180, 128, 40, false);
+                                           SEGMENTED_TO_VIRTUAL(gGanondorfTitleCardENGTex), 160, 180, 128, 40, true);
                 }
 
                 gSaveContext.eventChkInf[7] |= 0x100;
@@ -1188,7 +1211,7 @@ void BossGanon_SetupTowerCutscene(BossGanon* this, PlayState* play) {
         this->csTimer = 0;
         this->csState = 100;
         this->unk_198 = 1;
-        gSaveContext.magic = gSaveContext.unk_13F4;
+        gSaveContext.magic = gSaveContext.magicCapacity;
         gSaveContext.health = gSaveContext.healthCapacity;
     } else {
         this->actionFunc = BossGanon_SetupTowerCutscene;
@@ -1197,14 +1220,12 @@ void BossGanon_SetupTowerCutscene(BossGanon* this, PlayState* play) {
 
 void BossGanon_ShatterWindows(u8 windowShatterState) {
     s16 i;
-    u8* tex1 = ResourceMgr_LoadTexByName(SEGMENTED_TO_VIRTUAL(ganon_boss_sceneTex_006C18));
-    u8* tex2 = ResourceMgr_LoadTexByName(SEGMENTED_TO_VIRTUAL(ganon_boss_sceneTex_007418));
-    u8* templateTex = ResourceMgr_LoadTexByName(SEGMENTED_TO_VIRTUAL(gGanondorfWindowShatterTemplateTex));
+    u8* templateTex = GetResourceDataByName(SEGMENTED_TO_VIRTUAL(gGanondorfWindowShatterTemplateTex));
 
-    for (i = 0; i < 2048; i++) {
-        if ((tex1[i] != 0) && (Rand_ZeroOne() < 0.03f)) {
+    for (i = 0; i < ARRAY_COUNT(sWindowShatterTex); i++) {
+        if ((sWindowShatterTex[i] != 1) && (Rand_ZeroOne() < 0.03f)) {
             if ((templateTex[i] == 0) || (windowShatterState == GDF_WINDOW_SHATTER_FULL)) {
-                tex1[i] = tex2[i] = 1;
+                sWindowShatterTex[i] = 1;
             }
         }
     }
@@ -1214,7 +1235,7 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
     static Color_RGBA8 bloodPrimColor = { 0, 120, 0, 255 };
     static Color_RGBA8 bloodEnvColor = { 0, 120, 0, 255 };
 
-    if(CVar_GetS32("gRedGanonBlood", 0)) {
+    if(CVarGetInteger("gRedGanonBlood", 0)) {
         bloodPrimColor.r = 120;
         bloodPrimColor.g = 0;
 
@@ -1253,6 +1274,17 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             this->actor.shape.yOffset = -7000.0f;
 
             this->actor.shape.rot.y = 0;
+            // In rando, skip Ganondorf dying and go straight to next scene.
+            // Commented out for potential future use.
+            // The cutscene skip met a mixed reaction, so until we figure out a better way of doing it,
+            // it will stay not-skipped.
+            /*if (!gSaveContext.n64ddFlag) {
+                this->csState = 1;
+                this->csTimer = 0;
+            } else {
+                this->csState = 9;
+                this->csTimer = 170;
+            }*/
             this->csState = 1;
             this->csTimer = 0;
             this->useOpenHand = true;
@@ -1524,10 +1556,20 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             Play_ChangeCameraStatus(play, this->csCamIndex, CAM_STAT_ACTIVE);
             Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfCollapseAnim, 0.0f);
             this->fwork[1] = Animation_GetLastFrame(&gGanondorfDefeatedStartAnim);
-            this->csState = 101;
             this->skelAnime.playSpeed = 0.0f;
             sBossGanonZelda = (EnZl3*)Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_ZL3, 0.0f,
                                                 6000.0f, 0.0f, 0, 0, 0, 0x2000);
+
+            if (!gSaveContext.n64ddFlag) {
+                this->csState = 101;
+            } else {
+                this->skelAnime.playSpeed = 1.0f;
+                sBossGanonZelda->actor.world.pos.x = -472.0f;
+                sBossGanonZelda->actor.world.pos.y = 4102.0f;
+                sBossGanonZelda->actor.world.pos.z = -200.0f;
+                sBossGanonZelda->unk_3C8 = 3;
+                this->csState = 104;
+            }
 
             player->actor.world.pos.x = -472.0f;
             player->actor.world.pos.y = 4102.0f;
@@ -1645,6 +1687,11 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             }
             // fallthrough
         case 104:
+            // In rando, fade out the white here as the earlier part is skipped.
+            if (gSaveContext.n64ddFlag) {
+                Math_ApproachZeroF(&this->whiteFillAlpha, 1.0f, 10.0f);
+            }
+
             this->csCamEye.x = -432.0f;
             this->csCamEye.y = 4147.0f;
             this->csCamEye.z = -200.0f;
@@ -1662,7 +1709,16 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             }
 
             if (this->csTimer == 50) {
-                sBossGanonZelda->unk_3C8 = 4;
+                // In rando, skip the rest of the cutscene after the crystal around Zelda dissapears.
+                if (!gSaveContext.n64ddFlag) {
+                    sBossGanonZelda->unk_3C8 = 4;
+                } else {
+                    this->csState = 108;
+                    this->csTimer = 0;
+                    sBossGanonZelda->unk_3C8 = 7;
+                    Audio_QueueSeqCmd(SEQ_PLAYER_BGM_MAIN << 24 | NA_BGM_ESCAPE);
+                    break;
+                }
             }
 
             if (this->csTimer == 100) {
@@ -2728,7 +2784,7 @@ void BossGanon_UpdateDamage(BossGanon* this, PlayState* play) {
                                               Rand_ZeroFloat(200.0f) + 500.0f, 0x1E);
                 }
 
-                damage = flags = CollisionCheck_GetSwordDamage(acHitInfo->toucher.dmgFlags);
+                damage = flags = CollisionCheck_GetSwordDamage(acHitInfo->toucher.dmgFlags, play);
 
                 if (flags == 0) {
                     damage = 2;
@@ -2754,6 +2810,7 @@ void BossGanon_UpdateDamage(BossGanon* this, PlayState* play) {
                     func_80078914(&sZeroVec, NA_SE_EN_LAST_DAMAGE);
                     Audio_QueueSeqCmd(0x100100FF);
                     this->screenFlashTimer = 4;
+                    gSaveContext.sohStats.itemTimestamp[TIMESTAMP_DEFEAT_GANONDORF] = GAMEPLAYSTAT_TOTAL_TIME;
                 } else {
                     Audio_PlayActorSound2(&this->actor, NA_SE_EN_GANON_DAMAGE2);
                     Audio_PlayActorSound2(&this->actor, NA_SE_EN_GANON_CUTBODY);
@@ -3361,7 +3418,7 @@ void BossGanon_DrawShock(BossGanon* this, PlayState* play) {
     OPEN_DISPS(gfxCtx);
 
     if ((this->unk_2E8 != 0) || (this->unk_2E6 != 0)) {
-        func_80093D84(play->state.gfxCtx);
+        Gfx_SetupDL_25Xlu(play->state.gfxCtx);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, 255);
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 0, 0);
         gSPDisplayList(POLY_XLU_DISP++, gGanondorfLightBallMaterialDL);
@@ -3425,7 +3482,7 @@ void BossGanon_DrawHandLightBall(BossGanon* this, PlayState* play) {
     OPEN_DISPS(gfxCtx);
 
     if (this->handLightBallScale > 0.0f) {
-        func_80093D84(play->state.gfxCtx);
+        Gfx_SetupDL_25Xlu(play->state.gfxCtx);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, 255);
 
         if ((this->unk_1A2 % 2) != 0) {
@@ -3466,7 +3523,7 @@ void BossGanon_DrawBigMagicCharge(BossGanon* this, PlayState* play) {
     OPEN_DISPS(gfxCtx);
 
     if (this->unk_284 > 0.0f) {
-        func_80093D84(play->state.gfxCtx);
+        Gfx_SetupDL_25Xlu(play->state.gfxCtx);
 
         // light flecks
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 170, (s8)this->unk_290);
@@ -3785,7 +3842,7 @@ void BossGanon_DrawShadowTexture(void* tex, BossGanon* this, PlayState* play) {
 
     OPEN_DISPS(gfxCtx);
 
-    func_80093D18(play->state.gfxCtx);
+    Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 0, 0, 0, 50);
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 0);
 
@@ -3817,14 +3874,13 @@ void BossGanon_Draw(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    // Invalidate textures if they have changed
+    // Invalidate texture mask if it has changed
     if (this->windowShatterState != GDF_WINDOW_SHATTER_OFF) {
-        gSPInvalidateTexCache(POLY_OPA_DISP++, ganon_boss_sceneTex_006C18);
-        gSPInvalidateTexCache(POLY_OPA_DISP++, ganon_boss_sceneTex_007418);
+        gSPInvalidateTexCache(POLY_OPA_DISP++, sWindowShatterTex);
     }
 
-    func_80093D18(play->state.gfxCtx);
-    func_80093D84(play->state.gfxCtx);
+    Gfx_SetupDL_25Opa(play->state.gfxCtx);
+    Gfx_SetupDL_25Xlu(play->state.gfxCtx);
 
     if ((this->unk_1A6 & 2) != 0) {
         POLY_OPA_DISP = Gfx_SetFog(POLY_OPA_DISP, 255, 50, 0, 0, 900, 1099);
@@ -3961,7 +4017,7 @@ void BossGanon_LightBall_Update(Actor* thisx, PlayState* play2) {
 
         switch (this->unk_1C2) {
             case 0:
-                if ((player->stateFlags1 & 2) &&
+                if ((player->stateFlags1 & PLAYER_STATE1_SWINGING_BOTTLE) &&
                     (ABS((s16)(player->actor.shape.rot.y - (s16)(ganondorf->actor.yawTowardsPlayer + 0x8000))) <
                      0x2000) &&
                     (sqrtf(SQ(xDistFromLink) + SQ(yDistFromLink) + SQ(zDistFromLink)) <= 25.0f)) {
@@ -4002,7 +4058,7 @@ void BossGanon_LightBall_Update(Actor* thisx, PlayState* play2) {
                             }
 
                             // if a spin attack is used
-                            if (player->swordAnimation >= 0x18) {
+                            if (player->meleeWeaponAnimation >= 0x18) {
                                 this->actor.speedXZ = 20.0f;
                             }
                             break;
@@ -4165,7 +4221,7 @@ void BossGanon_LightBall_Draw(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    func_80093D84(play->state.gfxCtx);
+    Gfx_SetupDL_25Xlu(play->state.gfxCtx);
 
     alpha = ((this->unk_1A2 % 2) != 0) ? this->fwork[GDF_FWORK_1] * 0.4f : this->fwork[GDF_FWORK_1] * 0.35f;
 
@@ -4314,7 +4370,7 @@ void func_808E229C(Actor* thisx, PlayState* play2) {
     s32 temp;
 
     OPEN_DISPS(play->state.gfxCtx);
-    func_80093D84(play->state.gfxCtx);
+    Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, 255);
     gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 0, 0);
     gSPDisplayList(POLY_XLU_DISP++, gGanondorfLightBallMaterialDL);
@@ -4446,7 +4502,7 @@ void func_808E2544(Actor* thisx, PlayState* play) {
             this->actor.world.rot.x = (Math_CosS(this->unk_1A2 * 0x3400) * sp84 * 0.1f) + this->actor.shape.rot.x;
             this->actor.world.rot.y = (Math_SinS(this->unk_1A2 * 0x1A00) * sp84) + this->actor.shape.rot.y;
 
-            if ((player->swordState != 0) && (player->swordAnimation >= 0x18) && (this->actor.xzDistToPlayer < 80.0f)) {
+            if ((player->swordState != 0) && (player->meleeWeaponAnimation >= 0x18) && (this->actor.xzDistToPlayer < 80.0f)) {
                 this->unk_1C2 = 0xC;
                 this->actor.speedXZ = -30.0f;
                 func_8002D908(&this->actor);
@@ -4596,7 +4652,7 @@ void func_808E324C(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    func_80093D84(play->state.gfxCtx);
+    Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 255, 255, 255, (s8)this->fwork[GDF_FWORK_1]);
     gDPSetEnvColor(POLY_XLU_DISP++, 150, 255, 0, 128);
     gSPSegment(POLY_XLU_DISP++, 0x0D, mtx);
@@ -4852,7 +4908,7 @@ void BossGanon_DrawEffects(PlayState* play) {
     GanondorfEffect* effFirst = eff;
 
     OPEN_DISPS(gfxCtx);
-    func_80093D84(play->state.gfxCtx);
+    Gfx_SetupDL_25Xlu(play->state.gfxCtx);
 
     for (i = 0; i < 200; i++, eff++) {
         if (eff->type == GDF_EFF_WINDOW_SHARD) {

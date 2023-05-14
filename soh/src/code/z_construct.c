@@ -41,18 +41,16 @@ void func_801109B0(PlayState* play) {
     DmaMgr_SendRequest1(interfaceCtx->parameterSegment, (uintptr_t)_parameter_staticSegmentRomStart, parameterSize,
                         __FILE__, 162);
 
-    interfaceCtx->doActionSegment = GAMESTATE_ALLOC_MC(&play->state, 0x480);
+    interfaceCtx->doActionSegment = GAMESTATE_ALLOC_MC(&play->state, 3 * sizeof(char*));
 
     osSyncPrintf("ＤＯアクション テクスチャ初期=%x\n", 0x480); // "DO Action Texture Initialization"
     osSyncPrintf("parameter->do_actionSegment=%x\n", interfaceCtx->doActionSegment);
 
     ASSERT(interfaceCtx->doActionSegment != NULL);
 
-    uint32_t attackDoActionTexSize = ResourceMgr_LoadTexSizeByName(gAttackDoActionENGTex);
-    memcpy(interfaceCtx->doActionSegment, ResourceMgr_LoadTexByName(gAttackDoActionENGTex), attackDoActionTexSize);
-    memcpy(interfaceCtx->doActionSegment + (attackDoActionTexSize / 2), ResourceMgr_LoadTexByName(gCheckDoActionENGTex), attackDoActionTexSize);
-
-    memcpy(interfaceCtx->doActionSegment + attackDoActionTexSize, ResourceMgr_LoadTexByName(gReturnDoActionENGTex), ResourceMgr_LoadTexSizeByName(gReturnDoActionENGTex));
+    interfaceCtx->doActionSegment[0] = gAttackDoActionENGTex;
+    interfaceCtx->doActionSegment[1] = gCheckDoActionENGTex;
+    interfaceCtx->doActionSegment[2] = gReturnDoActionENGTex;
 
     interfaceCtx->iconItemSegment = GAMESTATE_ALLOC_MC(
         &play->state, 0x1000 * ARRAY_COUNT(gSaveContext.equips.buttonItems));
@@ -163,7 +161,7 @@ void Message_Init(PlayState* play) {
     YREG(31) = 0;
 }
 
-void func_80111070(void) {
+void Regs_InitDataImpl(void) {
     YREG(8) = 10;
     YREG(14) = 0;
     YREG(15) = 0;
@@ -431,7 +429,7 @@ void func_80111070(void) {
     WREG(28) = 0;
     R_OW_MINIMAP_X = 238;
     R_OW_MINIMAP_Y = 164;
-    R_MINIMAP_DISABLED = CVar_GetS32("gMinimalUI", 0);
+    R_MINIMAP_DISABLED = CVarGetInteger("gMinimalUI", 0);
     WREG(32) = 122;
     WREG(33) = 60;
     WREG(35) = 0;
@@ -572,6 +570,6 @@ void func_80111070(void) {
     VREG(92) = -63;
 }
 
-void func_80112098(PlayState* play) {
-    func_80111070();
+void Regs_InitData(PlayState* play) {
+    Regs_InitDataImpl();
 }

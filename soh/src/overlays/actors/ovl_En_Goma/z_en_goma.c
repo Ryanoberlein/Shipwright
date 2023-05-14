@@ -44,7 +44,7 @@ void EnGoma_SetupJump(EnGoma* this);
 void EnGoma_SetupStunned(EnGoma* this, PlayState* play);
 
 const ActorInit En_Goma_InitVars = {
-    ACTOR_BOSS_GOMA,
+    ACTOR_EN_GOMA,
     ACTORCAT_ENEMY,
     FLAGS,
     OBJECT_GOL,
@@ -396,6 +396,7 @@ void EnGoma_SetupDead(EnGoma* this) {
                      Animation_GetLastFrame(&gObjectGolDeadTwitchingAnim), ANIMMODE_LOOP, -2.0f);
     this->actionFunc = EnGoma_Dead;
     this->actionTimer = 3;
+    gSaveContext.sohStats.count[COUNT_ENEMIES_DEFEATED_GOHMA_LARVA]++;
 }
 
 void EnGoma_Dead(EnGoma* this, PlayState* play) {
@@ -643,7 +644,7 @@ void EnGoma_UpdateHit(EnGoma* this, PlayState* play) {
                         this->hurtTimer = 8;
                     }
                 } else {
-                    swordDamage = CollisionCheck_GetSwordDamage(dmgFlags);
+                    swordDamage = CollisionCheck_GetSwordDamage(dmgFlags, play);
 
                     if (swordDamage) {
                         EffectSsSibuki_SpawnBurst(play, &this->actor.focus.pos);
@@ -666,6 +667,7 @@ void EnGoma_UpdateHit(EnGoma* this, PlayState* play) {
 
                 EnGoma_SpawnHatchDebris(this, play);
                 Actor_Kill(&this->actor);
+                gSaveContext.sohStats.count[COUNT_ENEMIES_DEFEATED_GOHMA_LARVA]++;
             }
         }
     }
@@ -784,7 +786,7 @@ void EnGoma_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
 
     OPEN_DISPS(play->state.gfxCtx);
-    func_80093D18(play->state.gfxCtx);
+    Gfx_SetupDL_25Opa(play->state.gfxCtx);
 
     switch (this->gomaType) {
         case ENGOMA_NORMAL:

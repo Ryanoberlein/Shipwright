@@ -46,6 +46,9 @@ extern "C"
 	extern OSViMode osViModeFpalLan1;
 	extern u32 __additional_scanline;
 	extern u8 gBuildVersion[];
+	extern s16 gBuildVersionMajor;
+	extern s16 gBuildVersionMinor;
+	extern s16 gBuildVersionPatch;
     extern u8 gBuildTeam[];
 	extern u8 gBuildDate[];
 	extern u8 gBuildMakeOption[];
@@ -168,6 +171,7 @@ extern "C"
 	extern s32 __osPfsLastChannel;
 	extern u8 gWalkSpeedToggle1;
 	extern u8 gWalkSpeedToggle2;
+	extern f32 iceTrapScale;
 
 	extern const s16 D_8014A6C0[];
 #define gTatumsPerBeat (D_8014A6C0[1])

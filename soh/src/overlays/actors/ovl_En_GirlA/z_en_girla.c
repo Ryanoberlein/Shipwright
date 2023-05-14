@@ -410,7 +410,7 @@ void EnGirlA_InitItem(EnGirlA* this, PlayState* play) {
         return;
     }
 
-    if (!gSaveContext.n64ddFlag || !Randomizer_GetSettingValue(RSK_SHOPSANITY)) {
+    if (!gSaveContext.n64ddFlag || Randomizer_GetSettingValue(RSK_SHOPSANITY) == RO_SHOPSANITY_OFF) {
         this->objBankIndex = Object_GetIndex(&play->objectCtx, shopItemEntries[params].objID);
     } else {
         s16 objectId = shopItemEntries[params].objID;
@@ -422,10 +422,10 @@ void EnGirlA_InitItem(EnGirlA* this, PlayState* play) {
             objectId = getItemEntry.objectId;
         }
 
-        // Weird edge case here, sold out object reports as loaded for Kokiri shop but doesn't render so we force it to load here
-        if (Object_IsLoaded(&play->objectCtx, objectId) && (params != SI_SOLD_OUT && play->sceneNum == SCENE_KOKIRI_SHOP)) {
-            this->objBankIndex = Object_GetIndex(&play->objectCtx, objectId);
-        } else {
+        this->objBankIndex = Object_GetIndex(&play->objectCtx, objectId);
+
+        // If the object isn't normally spawned by the shop scene, then spawn it now
+        if (this->objBankIndex < 0) {
             this->objBankIndex = Object_Spawn(&play->objectCtx, objectId);
         }
     }
@@ -492,7 +492,7 @@ s32 EnGirlA_CanBuy_DekuNuts(PlayState* play, EnGirlA* this) {
     if (gSaveContext.rupees < this->basePrice) {
         return CANBUY_RESULT_NEED_RUPEES;
     }
-    if ((Item_CheckObtainability(ITEM_NUT) == ITEM_NONE) && !CVar_GetS32("gFastDrops", 0)) {
+    if ((Item_CheckObtainability(ITEM_NUT) == ITEM_NONE) && !CVarGetInteger("gFastDrops", 0)) {
         return CANBUY_RESULT_SUCCESS_FANFARE;
     }
     return CANBUY_RESULT_SUCCESS;
@@ -505,7 +505,7 @@ s32 EnGirlA_CanBuy_DekuSticks(PlayState* play, EnGirlA* this) {
     if (gSaveContext.rupees < this->basePrice) {
         return CANBUY_RESULT_NEED_RUPEES;
     }
-    if ((Item_CheckObtainability(ITEM_STICK) == ITEM_NONE) && !CVar_GetS32("gFastDrops", 0)) {
+    if ((Item_CheckObtainability(ITEM_STICK) == ITEM_NONE) && !CVarGetInteger("gFastDrops", 0)) {
         return CANBUY_RESULT_SUCCESS_FANFARE;
     }
     return CANBUY_RESULT_SUCCESS;
@@ -603,7 +603,8 @@ s32 EnGirlA_CanBuy_DekuShield(PlayState* play, EnGirlA* this) {
 }
 
 s32 EnGirlA_CanBuy_GoronTunic(PlayState* play, EnGirlA* this) {
-    if (LINK_AGE_IN_YEARS == YEARS_CHILD && (!gSaveContext.n64ddFlag || !Randomizer_GetSettingValue(RSK_SHOPSANITY))) {
+    if (LINK_AGE_IN_YEARS == YEARS_CHILD && 
+        (!gSaveContext.n64ddFlag || Randomizer_GetSettingValue(RSK_SHOPSANITY) == RO_SHOPSANITY_OFF)) {
         return CANBUY_RESULT_CANT_GET_NOW;
     }
     if (gBitFlags[9] & gSaveContext.inventory.equipment) {
@@ -619,7 +620,8 @@ s32 EnGirlA_CanBuy_GoronTunic(PlayState* play, EnGirlA* this) {
 }
 
 s32 EnGirlA_CanBuy_ZoraTunic(PlayState* play, EnGirlA* this) {
-    if (LINK_AGE_IN_YEARS == YEARS_CHILD && (!gSaveContext.n64ddFlag || !Randomizer_GetSettingValue(RSK_SHOPSANITY))) {
+    if (LINK_AGE_IN_YEARS == YEARS_CHILD &&
+        (!gSaveContext.n64ddFlag || Randomizer_GetSettingValue(RSK_SHOPSANITY) == RO_SHOPSANITY_OFF)) {
         return CANBUY_RESULT_CANT_GET_NOW;
     }
     if (gBitFlags[10] & gSaveContext.inventory.equipment) {
@@ -701,7 +703,7 @@ s32 EnGirlA_CanBuy_DekuSeeds(PlayState* play, EnGirlA* this) {
     if (gSaveContext.rupees < this->basePrice) {
         return CANBUY_RESULT_NEED_RUPEES;
     }
-    if ((Item_CheckObtainability(ITEM_SEEDS) == ITEM_NONE) && !CVar_GetS32("gFastDrops", 0)) {
+    if ((Item_CheckObtainability(ITEM_SEEDS) == ITEM_NONE) && !CVarGetInteger("gFastDrops", 0)) {
         return CANBUY_RESULT_SUCCESS_FANFARE;
     }
     return CANBUY_RESULT_SUCCESS;
@@ -792,11 +794,17 @@ s32 EnGirlA_CanBuy_Randomizer(PlayState* play, EnGirlA* this) {
 }
 
 void EnGirlA_ItemGive_Arrows(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     Inventory_ChangeAmmo(ITEM_BOW, this->itemCount);
     Rupees_ChangeBy(-this->basePrice);
 }
 
 void EnGirlA_ItemGive_Bombs(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     switch (this->itemCount) {
         case 5:
             Item_Give(play, ITEM_BOMBS_5);
@@ -815,6 +823,9 @@ void EnGirlA_ItemGive_Bombs(PlayState* play, EnGirlA* this) {
 }
 
 void EnGirlA_ItemGive_DekuNuts(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     switch (this->itemCount) {
         case 5:
             Item_Give(play, ITEM_NUTS_5);
@@ -827,65 +838,104 @@ void EnGirlA_ItemGive_DekuNuts(PlayState* play, EnGirlA* this) {
 }
 
 void EnGirlA_ItemGive_DekuSticks(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     Item_Give(play, ITEM_STICK);
     Rupees_ChangeBy(-this->basePrice);
 }
 
 void EnGirlA_ItemGive_Longsword(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     func_800849EC(play);
     gSaveContext.swordHealth = 8;
     Rupees_ChangeBy(-this->basePrice);
 }
 
 void EnGirlA_ItemGive_HylianShield(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     Item_Give(play, ITEM_SHIELD_HYLIAN);
     Rupees_ChangeBy(-this->basePrice);
 }
 
 void EnGirlA_ItemGive_DekuShield(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     Item_Give(play, ITEM_SHIELD_DEKU);
     Rupees_ChangeBy(-this->basePrice);
 }
 
 void EnGirlA_ItemGive_GoronTunic(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     Item_Give(play, ITEM_TUNIC_GORON);
     Rupees_ChangeBy(-this->basePrice);
 }
 
 void EnGirlA_ItemGive_ZoraTunic(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     Item_Give(play, ITEM_TUNIC_ZORA);
     Rupees_ChangeBy(-this->basePrice);
 }
 
 void EnGirlA_ItemGive_Health(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     Health_ChangeBy(play, this->itemCount);
     Rupees_ChangeBy(-this->basePrice);
 }
 
 void EnGirlA_ItemGive_MilkBottle(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     Item_Give(play, ITEM_MILK_BOTTLE);
     Rupees_ChangeBy(-this->basePrice);
 }
 
 void EnGirlA_ItemGive_WeirdEgg(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     Item_Give(play, ITEM_WEIRD_EGG);
     Rupees_ChangeBy(-this->basePrice);
 }
 
 void EnGirlA_ItemGive_Unk19(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     Rupees_ChangeBy(-this->basePrice);
 }
 
 void EnGirlA_ItemGive_Unk20(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     Rupees_ChangeBy(-this->basePrice);
 }
 
 void EnGirlA_ItemGive_DekuSeeds(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     Item_Give(play, ITEM_SEEDS_30);
     Rupees_ChangeBy(-this->basePrice);
 }
 
 void EnGirlA_ItemGive_BottledItem(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     switch (this->actor.params) {
         case SI_FISH:
             Item_Give(play, ITEM_FISH);
@@ -925,6 +975,8 @@ void EnGirlA_ItemGive_Randomizer(PlayState* play, EnGirlA* this) {
     ShopItemIdentity shopItemIdentity = Randomizer_IdentifyShopItem(play->sceneNum, this->randoSlotIndex);
     GetItemEntry getItemEntry = Randomizer_GetItemFromKnownCheckWithoutObtainabilityCheck(shopItemIdentity.randomizerCheck, shopItemIdentity.ogItemId);
 
+    gSaveContext.pendingSale = getItemEntry.itemId;
+    gSaveContext.pendingSaleMod = getItemEntry.modIndex;
     if (getItemEntry.modIndex == MOD_NONE) {
         // RANDOTOD: Move this into Item_Give() or some other more central location
         if (getItemEntry.getItemId == GI_SWORD_BGS) {
@@ -935,11 +987,18 @@ void EnGirlA_ItemGive_Randomizer(PlayState* play, EnGirlA* this) {
         Randomizer_Item_Give(play, getItemEntry);
     }
 
+    if (getItemEntry.itemId == GI_ICE_TRAP || getItemEntry.itemId == RG_ICE_TRAP) {
+        GameInteractor_ExecuteOnItemReceiveHooks(getItemEntry);
+    }
+
     Flags_SetRandomizerInf(shopItemIdentity.randomizerInf);
     Rupees_ChangeBy(-this->basePrice);
 }
 
 void EnGirlA_BuyEvent_ShieldDiscount(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     if (this->actor.params == SI_HYLIAN_SHIELD) {
         if (gSaveContext.infTable[7] & 0x40) {
             Rupees_ChangeBy(-(this->basePrice - sShieldDiscounts[(s32)Rand_ZeroFloat(7.9f)]));
@@ -950,14 +1009,23 @@ void EnGirlA_BuyEvent_ShieldDiscount(PlayState* play, EnGirlA* this) {
 }
 
 void EnGirlA_BuyEvent_GoronTunic(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     Rupees_ChangeBy(-this->basePrice);
 }
 
 void EnGirlA_BuyEvent_ZoraTunic(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     Rupees_ChangeBy(-this->basePrice);
 }
 
 void EnGirlA_BuyEvent_ObtainBombchuPack(PlayState* play, EnGirlA* this) {
+    GetItemEntry entry = ItemTable_Retrieve(this->getItemId);
+    gSaveContext.pendingSale = entry.itemId;
+    gSaveContext.pendingSaleMod = entry.modIndex;
     Rupees_ChangeBy(-this->basePrice);
 
 	// Normally, buying a bombchu pack sets a flag indicating the pack is now sold out
@@ -998,8 +1066,19 @@ void EnGirlA_BuyEvent_ObtainBombchuPack(PlayState* play, EnGirlA* this) {
 // The giving of the item is handled in ossan.c, and a fanfare is played
 void EnGirlA_BuyEvent_Randomizer(PlayState* play, EnGirlA* this) {
     ShopItemIdentity shopItemIdentity = Randomizer_IdentifyShopItem(play->sceneNum, this->randoSlotIndex);
+    GetItemEntry getItemEntry = Randomizer_GetItemFromKnownCheckWithoutObtainabilityCheck(shopItemIdentity.randomizerCheck, shopItemIdentity.ogItemId);
+    gSaveContext.pendingSale = getItemEntry.itemId;
+    gSaveContext.pendingSaleMod = getItemEntry.modIndex;
     Flags_SetRandomizerInf(shopItemIdentity.randomizerInf);
     Rupees_ChangeBy(-this->basePrice);
+
+    // Heart Pieces and Heart Containers refill Links health when the text box is closed on their text IDs.
+    // In Shopsanity the textbox does not close, as the shop keeper continues the text bos asking to buy more.
+    // So here we detect when a Heart Piece/Container is granted to refil Links health manually
+    if (getItemEntry.itemId == ITEM_HEART_PIECE || getItemEntry.itemId == ITEM_HEART_PIECE_2 ||
+        getItemEntry.itemId == ITEM_HEART_CONTAINER) {
+        gSaveContext.healthAccumulator = 0x140; // Refill 20 hearts
+    }
 }
 
 void EnGirlA_Noop(EnGirlA* this, PlayState* play) {

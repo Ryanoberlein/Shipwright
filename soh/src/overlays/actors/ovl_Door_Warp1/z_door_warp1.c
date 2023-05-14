@@ -1,5 +1,6 @@
 #include "z_door_warp1.h"
 #include "objects/object_warp1/object_warp1.h"
+#include "soh/Enhancements/randomizer/randomizer_entrance.h"
 
 #define FLAGS 0
 
@@ -567,6 +568,8 @@ void DoorWarp1_ChildWarpOut(DoorWarp1* this, PlayState* play) {
                 if (gSaveContext.n64ddFlag) {
                     play->nextEntranceIndex = 0x0457;
                     gSaveContext.nextCutsceneIndex = 0;
+                    // Skip Mido complaining about dead Deku tree
+                    Flags_SetEventChkInf(EVENTCHKINF_SPOKE_TO_MIDO_AFTER_DEKU_TREES_DEATH);
                 } else {
                     Item_Give(play, ITEM_KOKIRI_EMERALD);
                     play->nextEntranceIndex = 0xEE;
@@ -580,10 +583,16 @@ void DoorWarp1_ChildWarpOut(DoorWarp1* this, PlayState* play) {
             play->nextEntranceIndex = 0x10E;
             gSaveContext.nextCutsceneIndex = 0;
         }
+
+        if (gSaveContext.n64ddFlag && (Randomizer_GetSettingValue(RSK_SHUFFLE_DUNGEON_ENTRANCES) != RO_DUNGEON_ENTRANCE_SHUFFLE_OFF ||
+            Randomizer_GetSettingValue(RSK_SHUFFLE_BOSS_ENTRANCES) != RO_BOSS_ROOM_ENTRANCE_SHUFFLE_OFF)) {
+            Entrance_OverrideBlueWarp();
+        }
+
         osSyncPrintf("\n\n\nおわりおわり");
         play->sceneLoadFlag = 0x14;
         play->fadeTransition = 7;
-        gSaveContext.nextTransition = 3;
+        gSaveContext.nextTransitionType = 3;
     }
 
     Math_StepToF(&this->unk_194, 2.0f, 0.01f);
@@ -680,6 +689,11 @@ void DoorWarp1_RutoWarpOut(DoorWarp1* this, PlayState* play) {
             Item_Give(play, ITEM_ZORA_SAPPHIRE);
             play->nextEntranceIndex = 0x10E;
             gSaveContext.nextCutsceneIndex = 0xFFF0;
+        }
+
+        if (gSaveContext.n64ddFlag && (Randomizer_GetSettingValue(RSK_SHUFFLE_DUNGEON_ENTRANCES) != RO_DUNGEON_ENTRANCE_SHUFFLE_OFF ||
+            Randomizer_GetSettingValue(RSK_SHUFFLE_BOSS_ENTRANCES) != RO_BOSS_ROOM_ENTRANCE_SHUFFLE_OFF)) {
+            Entrance_OverrideBlueWarp();
         }
 
         play->sceneLoadFlag = 0x14;
@@ -812,6 +826,8 @@ void DoorWarp1_AdultWarpOut(DoorWarp1* this, PlayState* play) {
                 if (gSaveContext.n64ddFlag) {
                     play->nextEntranceIndex = 0x564;
                     gSaveContext.nextCutsceneIndex = 0;
+                    // Change Death Mountain cloud since we aren't warping to the cutscene
+                    Flags_SetEventChkInf(EVENTCHKINF_DEATH_MOUNTAIN_ERUPTED);
                 } else {
                     Item_Give(play, ITEM_MEDALLION_FIRE);
                     play->nextEntranceIndex = 0xDB;
@@ -833,6 +849,8 @@ void DoorWarp1_AdultWarpOut(DoorWarp1* this, PlayState* play) {
                 if (gSaveContext.n64ddFlag) {
                     play->nextEntranceIndex = 0x60C;
                     gSaveContext.nextCutsceneIndex = 0;
+                    // Fill Lake Hylia since we aren't warping to the cutscene
+                    Flags_SetEventChkInf(EVENTCHKINF_RAISED_LAKE_HYLIA_WATER);
                 } else {
                     Item_Give(play, ITEM_MEDALLION_WATER);
                     play->nextEntranceIndex = 0x6B;
@@ -890,9 +908,15 @@ void DoorWarp1_AdultWarpOut(DoorWarp1* this, PlayState* play) {
                 gSaveContext.nextCutsceneIndex = 0;
             }
         }
+
+        if (gSaveContext.n64ddFlag && (Randomizer_GetSettingValue(RSK_SHUFFLE_DUNGEON_ENTRANCES) != RO_DUNGEON_ENTRANCE_SHUFFLE_OFF ||
+            Randomizer_GetSettingValue(RSK_SHUFFLE_BOSS_ENTRANCES) != RO_BOSS_ROOM_ENTRANCE_SHUFFLE_OFF)) {
+            Entrance_OverrideBlueWarp();
+        }
+
         play->sceneLoadFlag = 0x14;
         play->fadeTransition = 3;
-        gSaveContext.nextTransition = 7;
+        gSaveContext.nextTransitionType = 7;
     }
     if (this->warpTimer >= 141) {
         f32 screenFillAlpha;
@@ -994,7 +1018,7 @@ void DoorWarp1_DrawBlueCrystal(DoorWarp1* this, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    func_80093D84(play->state.gfxCtx);
+    Gfx_SetupDL_25Xlu(play->state.gfxCtx);
 
     gDPSetPrimColor(POLY_XLU_DISP++, 0xFF, 0xFF, 200, 255, 255, (u8)this->crystalAlpha);
     gDPSetEnvColor(POLY_XLU_DISP++, 0, 100, 255, (u8)this->crystalAlpha);
@@ -1017,7 +1041,7 @@ void DoorWarp1_DrawPurpleCrystal(DoorWarp1* this, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    func_80093D84(play->state.gfxCtx);
+    Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     func_8002EB44(&this->actor.world.pos, &eye, &eye, play->state.gfxCtx);
 
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (u8)this->crystalAlpha);
@@ -1050,7 +1074,7 @@ void DoorWarp1_DrawWarp(DoorWarp1* this, PlayState* play) {
     if (this->actor.params == WARP_DESTINATION) {
         this->unk_19C -= (s16)(temp_f0 * 2.0f);
     }
-    func_80093D84(play->state.gfxCtx);
+    Gfx_SetupDL_25Xlu(play->state.gfxCtx);
 
     switch (this->actor.params) {
         case WARP_YELLOW:
