@@ -181,6 +181,8 @@ static u8 sDecayMaskTotal[16 * 16] = {
 };
 // clang-format on
 
+static u8 sDecayTex[16 * 16] = { { 0 } };
+
 // These are Phantom Ganon's body textures, but I don't know which is which.
 static void* sLimbTex_rgba16_8x8[] = {
     gPhantomGanonLimbTex_00A800, gPhantomGanonLimbTex_00AE80, gPhantomGanonLimbTex_00AF00,
@@ -208,66 +210,9 @@ static InitChainEntry sInitChain[] = {
 
 static Vec3f sAudioVec = { 0.0f, 0.0f, 50.0f };
 
-void BossGanondrof_ClearPixels8x8(s16* texture, u8* mask, s16 index)
-{
-    if (mask[index]) {
-        ResourceMgr_WriteTexS16ByName(texture, index / 4, 0);
-    }
-}
-
-void BossGanondrof_ClearPixels16x8(s16* texture, u8* mask, s16 index) {
-    if (mask[index]) {
-        ResourceMgr_WriteTexS16ByName(texture, index / 2, 0);
-
-    }
-}
-
-void BossGanondrof_ClearPixels16x16(s16* texture, u8* mask, s16 index, s16 bpp) {
-    if (mask[index]) {
-        ResourceMgr_WriteTexS16ByName(texture, index, 0);
-    }
-}
-
-void BossGanondrof_ClearPixels32x16(s16* texture, u8* mask, s16 index) {
-    if (mask[index]) {
-        s16 i = (index & 0xF) + ((index & 0xF0) << 1);
-
-        ResourceMgr_WriteTexS16ByName(texture, i + 0x10, 0);
-        ResourceMgr_WriteTexS16ByName(texture, i, 0);
-    }
-}
-
-void BossGanondrof_ClearPixels16x32(s16* texture, u8* mask, s16 index) {
-    if (mask[index]) {
-        s16 i = ((index & 0xF) * 2) + ((index & 0xF0) * 2);
-
-        ResourceMgr_WriteTexS16ByName(texture, i + 1, 0);
-        ResourceMgr_WriteTexS16ByName(texture, i, 0);
-    }
-
-}
-
 void BossGanondrof_ClearPixels(u8* mask, s16 index) {
-    s16 i;
-
-    for (i = 0; i < 5; i++) {
-        // ARRAY_COUNT can't be used here because the arrays aren't guaranteed to be the same size.
-        BossGanondrof_ClearPixels8x8(SEGMENTED_TO_VIRTUAL(sLimbTex_rgba16_8x8[i]), mask, index);
-        BossGanondrof_ClearPixels16x8(SEGMENTED_TO_VIRTUAL(sLimbTex_rgba16_16x8[i]), mask, index);
-    }
-
-    for (i = 0; i < ARRAY_COUNT(sLimbTex_rgba16_16x16); i++) {
-        BossGanondrof_ClearPixels16x16(SEGMENTED_TO_VIRTUAL(sLimbTex_rgba16_16x16[i]), mask, index, 2);
-    }
-
-    for (i = 0; i < ARRAY_COUNT(sLimbTex_rgba16_16x32); i++) {
-        BossGanondrof_ClearPixels16x32(SEGMENTED_TO_VIRTUAL(sLimbTex_rgba16_16x32[i]), mask, index);
-    }
-
-    BossGanondrof_ClearPixels32x16(SEGMENTED_TO_VIRTUAL(gPhantomGanonLimbTex_00B380), mask, index);
-    BossGanondrof_ClearPixels16x32(SEGMENTED_TO_VIRTUAL(gPhantomGanonEyeTex), mask, index);
-    for (i = 0; i < ARRAY_COUNT(sMouthTex_ci8_16x16); i++) {
-        BossGanondrof_ClearPixels16x16(SEGMENTED_TO_VIRTUAL(sMouthTex_ci8_16x16[i]), mask, index, 1);
+    if (mask[index]) {
+        sDecayTex[index] = 1;
     }
 }
 
@@ -304,12 +249,32 @@ void BossGanondrof_Init(Actor* thisx, PlayState* play) {
     if (Flags_GetClear(play, play->roomCtx.curRoom.num)) {
         Actor_Kill(&this->actor);
         Actor_Spawn(&play->actorCtx, play, ACTOR_DOOR_WARP1, GND_BOSSROOM_CENTER_X, GND_BOSSROOM_CENTER_Y,
-                    GND_BOSSROOM_CENTER_Z, 0, 0, 0, WARP_DUNGEON_ADULT);
+                    GND_BOSSROOM_CENTER_Z, 0, 0, 0, WARP_DUNGEON_ADULT, true);
         Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_B_HEART, 200.0f + GND_BOSSROOM_CENTER_X,
-                    GND_BOSSROOM_CENTER_Y, GND_BOSSROOM_CENTER_Z, 0, 0, 0, 0);
+                    GND_BOSSROOM_CENTER_Y, GND_BOSSROOM_CENTER_Z, 0, 0, 0, 0, true);
     } else {
         Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_FHG, this->actor.world.pos.x,
                            this->actor.world.pos.y, this->actor.world.pos.z, 0, 0, 0, this->actor.params);
+    }
+
+    for (int i = 0; i < ARRAY_COUNT(sDecayTex); i++) {
+        sDecayTex[i] = 0;
+    }
+
+    for (int i = 0; i < 5; i++) {
+        Gfx_RegisterBlendedTexture(sLimbTex_rgba16_8x8[i], sDecayTex, NULL);
+        Gfx_RegisterBlendedTexture(sLimbTex_rgba16_16x8[i], sDecayTex, NULL);
+    }
+    for (int i = 0; i < ARRAY_COUNT(sLimbTex_rgba16_16x16); i++) {
+        Gfx_RegisterBlendedTexture(sLimbTex_rgba16_16x16[i], sDecayTex, NULL);
+    }
+    for (int i = 0; i < ARRAY_COUNT(sLimbTex_rgba16_16x32); i++) {
+        Gfx_RegisterBlendedTexture(sLimbTex_rgba16_16x32[i], sDecayTex, NULL);
+    }
+    Gfx_RegisterBlendedTexture(gPhantomGanonLimbTex_00B380, sDecayTex, NULL);
+    Gfx_RegisterBlendedTexture(gPhantomGanonEyeTex, sDecayTex, NULL);
+    for (int i = 0; i < ARRAY_COUNT(sMouthTex_ci8_16x16); i++) {
+        Gfx_RegisterBlendedTexture(sMouthTex_ci8_16x16[i], sDecayTex, NULL);
     }
 }
 
@@ -1123,7 +1088,7 @@ void BossGanondrof_Death(BossGanondrof* this, PlayState* play) {
             if (this->timers[0] == 150) {
                 Audio_QueueSeqCmd(SEQ_PLAYER_BGM_MAIN << 24 | NA_BGM_BOSS_CLEAR);
                 Actor_Spawn(&play->actorCtx, play, ACTOR_DOOR_WARP1, GND_BOSSROOM_CENTER_X,
-                            GND_BOSSROOM_CENTER_Y, GND_BOSSROOM_CENTER_Z, 0, 0, 0, WARP_DUNGEON_ADULT);
+                            GND_BOSSROOM_CENTER_Y, GND_BOSSROOM_CENTER_Z, 0, 0, 0, WARP_DUNGEON_ADULT, true);
             }
 
             Math_ApproachZeroF(&this->cameraEye.y, 0.05f, 1.0f); // GND_BOSSROOM_CENTER_Y + 33.0f
@@ -1140,7 +1105,7 @@ void BossGanondrof_Death(BossGanondrof* this, PlayState* play) {
                 func_80064534(play, &play->csCtx);
                 func_8002DF54(play, &this->actor, 7);
                 Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_B_HEART, GND_BOSSROOM_CENTER_X,
-                            GND_BOSSROOM_CENTER_Y, GND_BOSSROOM_CENTER_Z + 200.0f, 0, 0, 0, 0);
+                            GND_BOSSROOM_CENTER_Y, GND_BOSSROOM_CENTER_Z + 200.0f, 0, 0, 0, 0, true);
                 this->actor.child = &horse->actor;
                 this->killActor = true;
                 horse->killActor = true;
@@ -1271,7 +1236,7 @@ void BossGanondrof_CollisionCheck(BossGanondrof* this, PlayState* play) {
                         if (dmgFlags & 0x80) {
                             return;
                         }
-                        dmg = CollisionCheck_GetSwordDamage(dmgFlags);
+                        dmg = CollisionCheck_GetSwordDamage(dmgFlags, play);
                         (dmg == 0) ? (dmg = 2) : (canKill = true);
                         if (((s8)this->actor.colChkInfo.health > 2) || canKill) {
                             this->actor.colChkInfo.health -= dmg;
@@ -1280,6 +1245,7 @@ void BossGanondrof_CollisionCheck(BossGanondrof* this, PlayState* play) {
                         if ((s8)this->actor.colChkInfo.health <= 0) {
                             BossGanondrof_SetupDeath(this, play);
                             Enemy_StartFinishingBlow(play, &this->actor);
+                            gSaveContext.sohStats.itemTimestamp[TIMESTAMP_DEFEAT_PHANTOM_GANON] = GAMEPLAYSTAT_TOTAL_TIME;
                             return;
                         }
                     }
@@ -1511,21 +1477,7 @@ void BossGanondrof_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     if (this->work[GND_BODY_DECAY_FLAG]) {
-        for (int i = 0; i < 5; i++) {
-            gSPInvalidateTexCache(POLY_OPA_DISP++, sLimbTex_rgba16_8x8[i]);
-            gSPInvalidateTexCache(POLY_OPA_DISP++, sLimbTex_rgba16_16x8[i]);
-        }
-        for (int i = 0; i < ARRAY_COUNT(sLimbTex_rgba16_16x16); i++) {
-            gSPInvalidateTexCache(POLY_OPA_DISP++, sLimbTex_rgba16_16x16[i]);
-        }
-        for (int i = 0; i < ARRAY_COUNT(sLimbTex_rgba16_16x32); i++) {
-            gSPInvalidateTexCache(POLY_OPA_DISP++, sLimbTex_rgba16_16x32[i]);
-        }
-        gSPInvalidateTexCache(POLY_OPA_DISP++, gPhantomGanonLimbTex_00B380);
-        gSPInvalidateTexCache(POLY_OPA_DISP++, gPhantomGanonEyeTex);
-        for (int i = 0; i < ARRAY_COUNT(sMouthTex_ci8_16x16); i++) {
-            gSPInvalidateTexCache(POLY_OPA_DISP++, sMouthTex_ci8_16x16[i]);
-        }
+        gSPInvalidateTexCache(POLY_OPA_DISP++, sDecayTex);
     }
 
     osSyncPrintf("MOVE P = %x\n", this->actor.update);
@@ -1536,7 +1488,7 @@ void BossGanondrof_Draw(Actor* thisx, PlayState* play) {
     }
 
     osSyncPrintf("YP %f\n", this->actor.world.pos.y);
-    func_80093D18(play->state.gfxCtx);
+    Gfx_SetupDL_25Opa(play->state.gfxCtx);
     if (this->work[GND_INVINC_TIMER] & 4) {
         POLY_OPA_DISP = Gfx_SetFog(POLY_OPA_DISP, 255, 50, 0, 0, 900, 1099);
     } else {

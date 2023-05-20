@@ -148,7 +148,10 @@ static int GetMaxGSCount() {
   //Get the max amount of GS which could be useful from token reward locations
   int maxUseful = 0;
   //If the highest advancement item is a token, we know it is useless since it won't lead to an otherwise useful item
-  if (Location(KAK_50_GOLD_SKULLTULA_REWARD)->GetPlacedItem().IsAdvancement() && Location(KAK_50_GOLD_SKULLTULA_REWARD)->GetPlacedItem().GetItemType() != ITEMTYPE_TOKEN) {
+  if (Location(KAK_100_GOLD_SKULLTULA_REWARD)->GetPlacedItem().IsAdvancement() && Location(KAK_100_GOLD_SKULLTULA_REWARD)->GetPlacedItem().GetItemType() != ITEMTYPE_TOKEN) {
+    maxUseful = 100;
+  }
+  else if (Location(KAK_50_GOLD_SKULLTULA_REWARD)->GetPlacedItem().IsAdvancement() && Location(KAK_50_GOLD_SKULLTULA_REWARD)->GetPlacedItem().GetItemType() != ITEMTYPE_TOKEN) {
     maxUseful = 50;
   }
   else if (Location(KAK_40_GOLD_SKULLTULA_REWARD)->GetPlacedItem().IsAdvancement() && Location(KAK_40_GOLD_SKULLTULA_REWARD)->GetPlacedItem().GetItemType() != ITEMTYPE_TOKEN) {
@@ -295,8 +298,8 @@ std::vector<uint32_t> GetAccessibleLocations(const std::vector<uint32_t>& allowe
         if (mode == SearchMode::GeneratePlaythrough && exit.IsShuffled() && !exit.IsAddedToPool() && !noRandomEntrances) {
           entranceSphere.push_back(&exit);
           exit.AddToPool();
-          // Don't list a coupled entrance from both directions
-          if (exit.GetReplacement()->GetReverse() != nullptr /*&& !DecoupleEntrances*/) {
+          // Don't list a two-way coupled entrance from both directions
+          if (exit.GetReverse() != nullptr && exit.GetReplacement()->GetReverse() != nullptr && !exit.IsDecoupled()) {
             exit.GetReplacement()->GetReverse()->AddToPool();
           }
         }
@@ -756,8 +759,14 @@ static void FillExcludedLocations() {
 
 //Function to handle the Own Dungeon setting
 static void RandomizeOwnDungeon(const Dungeon::DungeonInfo* dungeon) {
-  std::vector<uint32_t> dungeonLocations = dungeon->GetDungeonLocations();
   std::vector<uint32_t> dungeonItems;
+
+  // Search and filter for locations that match the hint region of the dungeon
+  // This accounts for boss room shuffle so that own dungeon items can be placed
+  // in the shuffled boss room
+  std::vector<LocationKey> dungeonLocations = FilterFromPool(allLocations, [dungeon](const auto loc) {
+    return GetHintRegionHintKey(Location(loc)->GetParentRegionKey()) == dungeon->GetHintKey();
+  });
 
   //filter out locations that may be required to have songs placed at them
   dungeonLocations = FilterFromPool(dungeonLocations, [](const auto loc){
@@ -909,6 +918,7 @@ void VanillaFill() {
   CreateItemOverrides();
   CreateEntranceOverrides();
   CreateAlwaysIncludedMessages();
+  CreateWarpSongTexts();
 }
 
 void ClearProgress() {
@@ -1071,6 +1081,12 @@ int Fill() {
       if (ShuffleMerchants.Is(SHUFFLEMERCHANTS_HINTS)) {
         CreateMerchantsHints();
       }
+      //Always execute ganon hint generation for the funny line  
+      CreateGanonText();
+      CreateAltarText();
+      CreateDampesDiaryText();
+      CreateGregRupeeHint();
+      CreateWarpSongTexts();
       return 1;
     }
     //Unsuccessful placement

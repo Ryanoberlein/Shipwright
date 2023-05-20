@@ -7,9 +7,10 @@
 #include <soh/Enhancements/item-tables/ItemTableTypes.h>
 
 #ifdef __cplusplus
-#include <libultraship/Window.h>
+#include <Window.h>
 #include "Enhancements/savestates.h"
 #include "Enhancements/randomizer/randomizer.h"
+#include <vector>
 
 const std::string customMessageTableID = "BaseGameOverrides";
 
@@ -18,7 +19,7 @@ class OTRGlobals
 public:
     static OTRGlobals* Instance;
 
-    std::shared_ptr<Ship::Window> context;
+    std::shared_ptr<LUS::Context> context;
     std::shared_ptr<SaveStateMgr> gSaveStateMgr;
     std::shared_ptr<Randomizer> gRandomizer;
 
@@ -27,6 +28,8 @@ public:
 
     bool HasMasterQuest();
     bool HasOriginal();
+    uint32_t GetInterpolationFPS();
+    std::shared_ptr<std::vector<std::string>> ListFiles(std::string path);
 
 private:
 	void CheckSaveFile(size_t sramSize) const;
@@ -56,16 +59,18 @@ int32_t OTRGetLastScancode();
 uint32_t ResourceMgr_IsGameMasterQuest();
 uint32_t ResourceMgr_GameHasMasterQuest();
 uint32_t ResourceMgr_GameHasOriginal();
-uint32_t ResourceMgr_GetGameVersion();
-void ResourceMgr_CacheDirectory(const char* resName);
+uint32_t ResourceMgr_GetNumGameVersions();
+uint32_t ResourceMgr_GetGameVersion(int index);
+void ResourceMgr_LoadDirectory(const char* resName);
 char** ResourceMgr_ListFiles(const char* searchMask, int* resultSize);
+uint8_t ResourceMgr_FileExists(const char* resName);
+char* GetResourceDataByNameHandlingMQ(const char* path);
 void ResourceMgr_LoadFile(const char* resName);
 char* ResourceMgr_LoadFileFromDisk(const char* filePath);
-char* ResourceMgr_LoadJPEG(char* data, int dataSize);
-char* ResourceMgr_LoadTexByName(const char* texPath);
+uint8_t ResourceMgr_ResourceIsBackground(char* texPath);
+char* ResourceMgr_LoadJPEG(char* data, size_t dataSize);
 uint16_t ResourceMgr_LoadTexWidthByName(char* texPath);
 uint16_t ResourceMgr_LoadTexHeightByName(char* texPath);
-uint32_t ResourceMgr_LoadTexSizeByName(char* texPath);
 char* ResourceMgr_LoadTexOrDListByName(const char* filePath);
 char* ResourceMgr_LoadPlayerAnimByName(const char* animPath);
 AnimationHeaderCommon* ResourceMgr_LoadAnimByName(const char* path);
@@ -77,7 +82,7 @@ void ResourceMgr_UnpatchGfxByName(const char* path, const char* patchName);
 char* ResourceMgr_LoadArrayByNameAsVec3s(const char* path);
 Vtx* ResourceMgr_LoadVtxByCRC(uint64_t crc);
 
-Vtx* ResourceMgr_LoadVtxByName(const char* path);
+Vtx* ResourceMgr_LoadVtxByName(char* path);
 SoundFont* ResourceMgr_LoadAudioSoundFont(const char* path);
 SequenceData ResourceMgr_LoadSeqByName(const char* path);
 SoundFontSample* ResourceMgr_LoadAudioSample(const char* path);
@@ -86,7 +91,9 @@ void Ctx_ReadSaveFile(uintptr_t addr, void* dramAddr, size_t size);
 void Ctx_WriteSaveFile(uintptr_t addr, void* dramAddr, size_t size);
 
 uint64_t GetPerfCounter();
-struct SkeletonHeader* ResourceMgr_LoadSkeletonByName(const char* path);
+struct SkeletonHeader* ResourceMgr_LoadSkeletonByName(const char* path, SkelAnime* skelAnime);
+void ResourceMgr_UnregisterSkeleton(SkelAnime* skelAnime);
+void ResourceMgr_ClearSkeletons();
 s32* ResourceMgr_LoadCSByName(const char* path);
 int ResourceMgr_OTRSigCheck(char* imgData);
 uint64_t osGetTime(void);
@@ -105,7 +112,7 @@ int AudioPlayer_Buffered(void);
 int AudioPlayer_GetDesiredBuffered(void);
 void AudioPlayer_Play(const uint8_t* buf, uint32_t len);
 void AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples);
-int Controller_ShouldRumble(size_t i);
+int Controller_ShouldRumble(size_t slot);
 void Controller_BlockGameInput();
 void Controller_UnblockGameInput();
 void Hooks_ExecuteAudioInit();
@@ -124,6 +131,7 @@ void Randomizer_LoadMerchantMessages(const char* spoilerFileName);
 void Randomizer_LoadRequiredTrials(const char* spoilerFileName);
 void Randomizer_LoadMasterQuestDungeons(const char* spoilerFileName);
 void Randomizer_LoadItemLocations(const char* spoilerFileName, bool silent);
+void Randomizer_LoadEntranceOverrides(const char* spoilerFileName, bool silent);
 bool Randomizer_IsTrialRequired(RandomizerInf trial);
 GetItemEntry Randomizer_GetItemFromActor(s16 actorId, s16 sceneNum, s16 actorParams, GetItemID ogId);
 GetItemEntry Randomizer_GetItemFromActorWithoutObtainabilityCheck(s16 actorId, s16 sceneNum, s16 actorParams, GetItemID ogId);
@@ -132,8 +140,17 @@ GetItemEntry Randomizer_GetItemFromKnownCheckWithoutObtainabilityCheck(Randomize
 ItemObtainability Randomizer_GetItemObtainabilityFromRandomizerCheck(RandomizerCheck randomizerCheck);
 int CustomMessage_RetrieveIfExists(PlayState* play);
 void Overlay_DisplayText(float duration, const char* text);
+void Overlay_DisplayText_Seconds(int seconds, const char* text);
 GetItemEntry ItemTable_Retrieve(int16_t getItemID);
 GetItemEntry ItemTable_RetrieveEntry(s16 modIndex, s16 getItemID);
+void Entrance_ClearEntranceTrackingData(void);
+void Entrance_InitEntranceTrackingData(void);
+void EntranceTracker_SetCurrentGrottoID(s16 entranceIndex);
+void EntranceTracker_SetLastEntranceOverride(s16 entranceIndex);
+void Gfx_RegisterBlendedTexture(const char* name, u8* mask, u8* replacement);
+void SaveManager_ThreadPoolWait();
+
+uint32_t GetGIID(uint32_t itemID);
 #endif
 
 #endif

@@ -2,8 +2,14 @@ cmake_minimum_required(VERSION 3.16.0 FATAL_ERROR)
 
 set(CMAKE_SYSTEM_VERSION 10.0 CACHE STRING "" FORCE)
 
-project(soh C CXX)
+project(soh LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20 CACHE STRING "The C++ standard to use")
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    enable_language(OBJCXX)
+    set(CMAKE_OBJC_FLAGS "${CMAKE_OBJC_FLAGS} -fobjc-arc")
+    set(CMAKE_OBJCXX_FLAGS "${CMAKE_OBJCXX_FLAGS} -fobjc-arc")
+endif()
 
 set (BUILD_UTILS OFF CACHE STRING "no utilities")
 set (BUILD_SHARED_LIBS OFF CACHE STRING "install/link shared instead of static libs")
@@ -83,519 +89,114 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # Sub-projects
 ################################################################################
 if (NOT TARGET libultraship)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/libultraship ${CMAKE_BINARY_DIR}/libultraship)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../libultraship ${CMAKE_BINARY_DIR}/libultraship)
 endif()
 
 if (NOT TARGET ZAPDUtils)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../ZAPDTR/ZAPDUtils ${CMAKE_BINARY_DIR}/ZAPDUtils)
 endif()
 
+if (NOT TARGET ZAPDLib)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../ZAPDTR/ZAPD ${CMAKE_BINARY_DIR}/ZAPD)
+endif()
+
 set(PROJECT_NAME soh)
 
 ################################################################################
-# Source groups
+# Sources
 ################################################################################
 configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/src/boot/build.c.in ${CMAKE_BINARY_DIR}/build.c @ONLY)
+configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/src/boot/properties.h.in ${CMAKE_CURRENT_SOURCE_DIR}/properties.h @ONLY)
 
-set(Header_Files
-    "resource.h"
-)
-source_group("Header Files" FILES ${Header_Files})
+set(Header_Files "resource.h")
+source_group("headers" FILES ${Header_Files})
 
-set(Header_Files__include
-    "include/alloca.h"
-    #"include/bgm.h"
-    "include/command_macros_base.h"
-    "include/fp.h"
-    "include/functions.h"
-    "include/global.h"
-    "include/ichain.h"
-    "include/macro.inc"
-    "include/macros.h"
-    "include/message_data_fmt.h"
-    "include/message_data_static.h"
-    "include/message_data_textbox_types.h"
-    #"include/math_n64.h"
-    "include/regs.h"
-    "include/segment_symbols.h"
-    "include/sfx.h"
-    "include/libc/stdarg.h"
-    #"include/stdbool_n64.h"
-    #"include/stddef_n64.h"
-    #"include/stdlib_n64.h"
-    "include/ultra64.h"
-    "include/unk.h"
-    "include/variables.h"
-    "include/vt.h"
-    "include/z64.h"
-    "include/z64actor.h"
-    "include/z64animation.h"
-    "include/z64audio.h"
-    "include/z64bgcheck.h"
-    "include/z64camera.h"
-    "include/z64collision_check.h"
-    "include/z64cutscene.h"
-    "include/z64cutscene_commands.h"
-    "include/z64dma.h"
-    "include/z64effect.h"
-    "include/z64environment.h"
-    "include/z64interface.h"
-    "include/z64item.h"
-    "include/z64light.h"
-    "include/z64map_mark.h"
-    "include/z64math.h"
-    "include/z64object.h"
-    "include/z64player.h"
-    "include/z64save.h"
-    "include/z64scene.h"
-    "include/z64transition.h"
-)
-source_group("Header Files\\include" FILES ${Header_Files__include})
+# include {{{
+file(GLOB Header_Files__include "include/*.h" "include/*.inc")
+list(APPEND Header_Files__include ${CMAKE_CURRENT_SOURCE_DIR}/include/libc/stdarg.h)
+list(REMOVE_ITEM Header_Files__include ${CMAKE_CURRENT_SOURCE_DIR}/include/bgm.h)
+list(REMOVE_ITEM Header_Files__include ${CMAKE_CURRENT_SOURCE_DIR}/include/math_n64.h)
+list(REMOVE_ITEM Header_Files__include ${CMAKE_CURRENT_SOURCE_DIR}/include/stdbool_n64.h)
+list(REMOVE_ITEM Header_Files__include ${CMAKE_CURRENT_SOURCE_DIR}/include/stddef_n64.h)
+list(REMOVE_ITEM Header_Files__include ${CMAKE_CURRENT_SOURCE_DIR}/include/stdlib_n64.h)
+list(REMOVE_ITEM Header_Files__include ${CMAKE_CURRENT_SOURCE_DIR}/include/ultra64.h)
+source_group("include" FILES ${Header_Files__include})
+# }}}
 
-set(Header_Files__soh__Enhancements
-    "soh/Enhancements/bootcommands.h"
-    #"soh/Enhancements/cvar.h"
-    "soh/Enhancements/debugconsole.h"
-    "soh/Enhancements/gameconsole.h"
-    "soh/Enhancements/savestates.h"
-    "soh/Enhancements/savestates_extern.inc"
-)
-source_group("Header Files\\soh\\Enhancements" FILES ${Header_Files__soh__Enhancements})
+# soh (root)
+file(GLOB soh__ RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "soh/*.c" "soh/*.cpp" "soh/*.h")
+source_group("soh" FILES ${soh__})
 
-set(Header_Files__soh__Enhancements__controls
-    "soh/Enhancements/controls/GameControlEditor.h"
-)
-source_group("Header Files\\soh\\Enhancements\\controls" FILES ${Header_Files__soh__Enhancements__controls})
-
-
-set(Header_Files__soh__Enhancements__cosmetics
-    "soh/Enhancements/cosmetics/CosmeticsEditor.h"
-)
-source_group("Header Files\\soh\\Enhancements\\cosmetics" FILES ${Header_Files__soh__Enhancements__cosmetics})
-
-set(Header_Files__soh__Enhancements__sfx_editor
-    "soh/Enhancements/sfx-editor/SfxEditor.h"
-)
-source_group("Header Files\\soh\\Enhancements\\sfx-editor" FILES ${Header_Files__soh__Enhancements__sfx_editor})
-
-set(Header_Files__soh__Enhancements__debugger
-    "soh/Enhancements/debugger/actorViewer.h"
-    "soh/Enhancements/debugger/colViewer.h"
-    "soh/Enhancements/debugger/debugger.h"
-    "soh/Enhancements/debugger/debugSaveEditor.h"
-)
-source_group("Header Files\\soh\\Enhancements\\debugger" FILES ${Header_Files__soh__Enhancements__debugger})
-
-set(Header_Files__soh__Enhancements__randomizer
-    "soh/Enhancements/randomizer/randomizer.h"
-    "soh/Enhancements/randomizer/randomizer_inf.h"
-    "soh/Enhancements/randomizer/randomizer_item_tracker.h"
-    "soh/Enhancements/randomizer/adult_trade_shuffle.h"
-    "soh/Enhancements/randomizer/randomizer_check_objects.h"
-    "soh/Enhancements/randomizer/draw.h"
-    "soh/Enhancements/randomizer/rando_hash.h"
-)
-source_group("Header Files\\soh\\Enhancements\\randomizer" FILES ${Header_Files__soh__Enhancements__randomizer})
-
-set(Header_Files__soh__Enhancements__randomizer__3drando
-    "soh/Enhancements/randomizer/3drando/category.hpp"
-    "soh/Enhancements/randomizer/3drando/cosmetics.hpp"
-    "soh/Enhancements/randomizer/3drando/custom_messages.hpp"
-    "soh/Enhancements/randomizer/3drando/debug.hpp"
-    "soh/Enhancements/randomizer/3drando/dungeon.hpp"
-    "soh/Enhancements/randomizer/3drando/entrance.hpp"
-    "soh/Enhancements/randomizer/3drando/fill.hpp"
-    "soh/Enhancements/randomizer/3drando/hint_list.hpp"
-    "soh/Enhancements/randomizer/3drando/hints.hpp"
-    "soh/Enhancements/randomizer/3drando/item.hpp"
-    "soh/Enhancements/randomizer/3drando/item_list.hpp"
-    "soh/Enhancements/randomizer/3drando/item_location.hpp"
-    "soh/Enhancements/randomizer/3drando/item_pool.hpp"
-    "soh/Enhancements/randomizer/3drando/keys.hpp"
-    "soh/Enhancements/randomizer/3drando/location_access.hpp"
-    "soh/Enhancements/randomizer/3drando/logic.hpp"
-    "soh/Enhancements/randomizer/3drando/menu.hpp"
-    "soh/Enhancements/randomizer/3drando/music.hpp"
-    "soh/Enhancements/randomizer/3drando/patch.hpp"
-    "soh/Enhancements/randomizer/3drando/playthrough.hpp"
-    "soh/Enhancements/randomizer/3drando/pool_functions.hpp"
-    "soh/Enhancements/randomizer/3drando/preset.hpp"
-    "soh/Enhancements/randomizer/3drando/rando_main.hpp"
-    "soh/Enhancements/randomizer/3drando/random.hpp"
-    "soh/Enhancements/randomizer/3drando/setting_descriptions.hpp"
-    "soh/Enhancements/randomizer/3drando/settings.hpp"
-    "soh/Enhancements/randomizer/3drando/shops.hpp"
-    "soh/Enhancements/randomizer/3drando/sound_effects.hpp"
-    "soh/Enhancements/randomizer/3drando/spoiler_log.hpp"
-    "soh/Enhancements/randomizer/3drando/starting_inventory.hpp"
-    "soh/Enhancements/randomizer/3drando/text.hpp"
-    "soh/Enhancements/randomizer/3drando/tinyxml2.h"
-    "soh/Enhancements/randomizer/3drando/trial.hpp"
-    "soh/Enhancements/randomizer/3drando/utils.hpp"
-)
-
-source_group("Header Files\\soh\\Enhancements\\randomizer\\3drando" FILES ${Header_Files__soh__Enhancements__randomizer__3drando})
-
-set(Header_Files__soh__Enhancements__custom_message
-    "soh/Enhancements/custom-message/CustomMessageTypes.h"
-    "soh/Enhancements/custom-message/CustomMessageManager.h"
-)
-
-source_group("Header Files\\soh\\Enhancements\\custom-message" FILES ${Header_Files__soh__Enhancements__custom_message})
-
-set(Header_Files__soh__Enhancements__item_tables
-    "soh/Enhancements/item-tables/ItemTableManager.h"
-    "soh/Enhancements/item-tables/ItemTableTypes.h"
-)
-
-source_group("Header Files\\soh\\Enhancements\\item-tables" FILES ${Header_Files__soh__Enhancements__item_tables})
-
-if (BUILD_CROWD_CONTROL)
-set(Header_Files__soh__Enhancements__crowd_control
-    "soh/Enhancements/crowd-control/CrowdControl.h"
-)
-source_group("Header Files\\soh\\Enhancements\\crowd-control" FILES ${Header_Files__soh__Enhancements__crowd_control})
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set_source_files_properties(soh/OTRGlobals.cpp PROPERTIES COMPILE_FLAGS "/utf-8")
 endif()
 
-set(Source_Files__soh
-    "soh/GbiWrap.cpp"
-    "soh/OTRAudio.h"
-    "soh/OTRGlobals.cpp"
-    "soh/OTRGlobals.h"
-    "soh/SaveManager.h"
-    "soh/SaveManager.cpp"
-    "soh/frame_interpolation.h"
-    "soh/frame_interpolation.cpp"
-    "soh/gu_pc.c"
-    "soh/stubs.c"
-    "soh/util.h"
-    "soh/util.cpp"
-    "soh/z_message_OTR.cpp"
-    "soh/z_play_otr.cpp"
-    "soh/z_scene_otr.cpp"
-    "soh/GameMenuBar.hpp"
-    "soh/GameMenuBar.cpp"
-    "soh/UIWidgets.hpp"
-    "soh/UIWidgets.cpp"
-    "soh/CrashHandlerExt.cpp"
-)
-source_group("Source Files\\soh" FILES ${Source_Files__soh})
-
-set(Source_Files__soh__Enhancements
-    "soh/Enhancements/bootcommands.c"
-    "soh/Enhancements/debugconsole.cpp"
-    "soh/Enhancements/gameconsole.c"
-    "soh/Enhancements/savestates.cpp"
-)
-source_group("Source Files\\soh\\Enhancements" FILES ${Source_Files__soh__Enhancements})
-
-set(Source_Files__soh__Enhancements__controls
-    "soh/Enhancements/controls/GameControlEditor.cpp"
-)
-source_group("Source Files\\soh\\Enhancements\\controls" FILES ${Source_Files__soh__Enhancements__controls})
-
-set(Source_Files__soh__Enhancements__cosmetics
-    "soh/Enhancements/cosmetics/CosmeticsEditor.cpp"
-)
-source_group("Source Files\\soh\\Enhancements\\cosmetics" FILES ${Source_Files__soh__Enhancements__cosmetics})
-
-set(Source_Files__soh__Enhancements__sfx_editor
-    "soh/Enhancements/sfx-editor/SfxEditor.cpp"
-)
-source_group("Source Files\\soh\\Enhancements\\sfx-editor" FILES ${Source_Files__soh__Enhancements__sfx_editor})
-
-set(Source_Files__soh__Enhancements__debugger
-    "soh/Enhancements/debugger/actorViewer.cpp"
-    "soh/Enhancements/debugger/colViewer.cpp"
-    "soh/Enhancements/debugger/debugger.cpp"
-    "soh/Enhancements/debugger/debugSaveEditor.cpp"
-)
-source_group("Source Files\\soh\\Enhancements\\debugger" FILES ${Source_Files__soh__Enhancements__debugger})
-
-set(Source_Files__soh__Enhancements__randomizer
-    "soh/Enhancements/randomizer/randomizer.cpp"
-    "soh/Enhancements/randomizer/randomizer_item_tracker.cpp"
-    "soh/Enhancements/randomizer/adult_trade_shuffle.c"
-    "soh/Enhancements/randomizer/randomizer_check_objects.cpp"
-    "soh/Enhancements/randomizer/draw.cpp"
-)
-source_group("Source Files\\soh\\Enhancements\\randomizer" FILES ${Source_Files__soh__Enhancements__randomizer})
-
-set(Source_Files__soh__Enhancements__randomizer__3drando
-    "soh/Enhancements/randomizer/3drando/cosmetics.cpp"
-    "soh/Enhancements/randomizer/3drando/custom_messages.cpp"
-    "soh/Enhancements/randomizer/3drando/debug.cpp"
-    "soh/Enhancements/randomizer/3drando/dungeon.cpp"
-    "soh/Enhancements/randomizer/3drando/entrance.cpp"
-    "soh/Enhancements/randomizer/3drando/fill.cpp"
-    "soh/Enhancements/randomizer/3drando/hint_list.cpp"
-    "soh/Enhancements/randomizer/3drando/hints.cpp"
-    "soh/Enhancements/randomizer/3drando/item.cpp"
-    "soh/Enhancements/randomizer/3drando/item_list.cpp"
-    "soh/Enhancements/randomizer/3drando/item_location.cpp"
-    "soh/Enhancements/randomizer/3drando/item_pool.cpp"
-    "soh/Enhancements/randomizer/3drando/location_access.cpp"
-    "soh/Enhancements/randomizer/3drando/logic.cpp"
-    "soh/Enhancements/randomizer/3drando/menu.cpp"
-    "soh/Enhancements/randomizer/3drando/music.cpp"
-    "soh/Enhancements/randomizer/3drando/patch.cpp"
-    "soh/Enhancements/randomizer/3drando/playthrough.cpp"
-    "soh/Enhancements/randomizer/3drando/preset.cpp"
-    "soh/Enhancements/randomizer/3drando/rando_main.cpp"
-    "soh/Enhancements/randomizer/3drando/random.cpp"
-    "soh/Enhancements/randomizer/3drando/setting_descriptions.cpp"
-    "soh/Enhancements/randomizer/3drando/settings.cpp"
-    "soh/Enhancements/randomizer/3drando/shops.cpp"
-    "soh/Enhancements/randomizer/3drando/sound_effects.cpp"
-    "soh/Enhancements/randomizer/3drando/spoiler_log.cpp"
-    "soh/Enhancements/randomizer/3drando/starting_inventory.cpp"
-    "soh/Enhancements/randomizer/3drando/tinyxml2.cpp"
-    "soh/Enhancements/randomizer/3drando/trial.cpp"
-    "soh/Enhancements/randomizer/3drando/utils.cpp"
-)
-source_group("Source Files\\soh\\Enhancements\\randomizer\\3drando" FILES ${Source_Files__soh__Enhancements__randomizer__3drando})
-
-set(Source_Files__soh__Enhancements__randomizer__3drando__hint_list
-    "soh/Enhancements/randomizer/3drando/hint_list/hint_list_exclude_dungeon.cpp"
-    "soh/Enhancements/randomizer/3drando/hint_list/hint_list_exclude_overworld.cpp"
-    "soh/Enhancements/randomizer/3drando/hint_list/hint_list_item.cpp"
-)
-source_group("Source Files\\soh\\Enhancements\\randomizer\\3drando\\hint_list" FILES ${Source_Files__soh__Enhancements__randomizer__3drando__hint_list}) 
-
-set(Source_Files__soh__Enhancements__randomizer__3drando__location_access
-    "soh/Enhancements/randomizer/3drando/location_access/locacc_bottom_of_the_well.cpp"
-    "soh/Enhancements/randomizer/3drando/location_access/locacc_castle_town.cpp"
-    "soh/Enhancements/randomizer/3drando/location_access/locacc_death_mountain.cpp"
-    "soh/Enhancements/randomizer/3drando/location_access/locacc_deku_tree.cpp"
-    "soh/Enhancements/randomizer/3drando/location_access/locacc_dodongos_cavern.cpp"
-    "soh/Enhancements/randomizer/3drando/location_access/locacc_fire_temple.cpp"
-    "soh/Enhancements/randomizer/3drando/location_access/locacc_forest_temple.cpp"
-    "soh/Enhancements/randomizer/3drando/location_access/locacc_ganons_castle.cpp"
-    "soh/Enhancements/randomizer/3drando/location_access/locacc_gerudo_training_grounds.cpp"
-    "soh/Enhancements/randomizer/3drando/location_access/locacc_gerudo_valley.cpp"
-    "soh/Enhancements/randomizer/3drando/location_access/locacc_hyrule_field.cpp"
-    "soh/Enhancements/randomizer/3drando/location_access/locacc_ice_cavern.cpp"
-    "soh/Enhancements/randomizer/3drando/location_access/locacc_jabujabus_belly.cpp"
-    "soh/Enhancements/randomizer/3drando/location_access/locacc_kakariko.cpp"
-    "soh/Enhancements/randomizer/3drando/location_access/locacc_lost_woods.cpp"
-    "soh/Enhancements/randomizer/3drando/location_access/locacc_shadow_temple.cpp"
-    "soh/Enhancements/randomizer/3drando/location_access/locacc_spirit_temple.cpp"
-    "soh/Enhancements/randomizer/3drando/location_access/locacc_water_temple.cpp"
-    "soh/Enhancements/randomizer/3drando/location_access/locacc_zoras_domain.cpp"
-)
-source_group("Source Files\\soh\\Enhancements\\randomizer\\3drando\\location_access" FILES ${Source_Files__soh__Enhancements__randomizer__3drando__location_access})   
-
-set(Source_Files__soh__Enhancements__custom_message
-    "soh/Enhancements/custom-message/CustomMessageManager.cpp"
+# soh/enhancements {{{
+file(GLOB_RECURSE soh__Enhancements RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+    "soh/Enhancements/*.c"
+    "soh/Enhancements/*.cpp"
+    "soh/Enhancements/*.h"
+    "soh/Enhancements/*.hpp"
+    "soh/Enhancements/*_extern.inc"
+    "soh/Enhancements/*.mm"
 )
 
-source_group("Source Files\\soh\\Enhancements\\custom-message" FILES ${Source_Files__soh__Enhancements__custom_message})
+list(REMOVE_ITEM soh__Enhancements "soh/Enhancements/gamecommand.h")
+list(FILTER soh__Enhancements EXCLUDE REGEX "soh/Enhancements/gfx.*")
 
-set(Source_Files__soh__Enhancements__item_tables
-    "soh/Enhancements/item-tables/ItemTableManager.cpp"
-)
-
-source_group("Source Files\\soh\\Enhancements\\item-tables" FILES ${Source_Files__soh__Enhancements__item_tables})
-
-if (BUILD_CROWD_CONTROL)
-set(Source_Files__soh__Enhancements__crowd_control
-    "soh/Enhancements/crowd-control/CrowdControl.cpp"
-)
-source_group("Source Files\\soh\\Enhancements\\crowd-control" FILES ${Source_Files__soh__Enhancements__crowd_control})
+# handle crowd control removals
+list(REMOVE_ITEM soh__Enhancements "soh/Enhancements/crowd-control/soh.cs")
+list(REMOVE_ITEM soh__Enhancements "soh/Enhancements/crowd-control/soh.ccpak")
+if (!BUILD_CROWD_CONTROL)
+    list(FILTER soh__Enhancements EXCLUDE REGEX "soh/Enhancements/crowd-control/*")
 endif()
 
-set(Source_Files__src__boot
-    "src/boot/assert.c"
-    "src/boot/boot_main.c"
-    "${CMAKE_BINARY_DIR}/build.c"
-    "src/boot/idle.c"
-    "src/boot/is_debug.c"
-    "src/boot/logutils.c"
-    "src/boot/stackcheck.c"
-    "src/boot/viconfig.c"
-    "src/boot/yaz0.c"
-    "src/boot/z_locale.c"
-    "src/boot/z_std_dma.c"
-)
-source_group("Source Files\\src\\boot" FILES ${Source_Files__src__boot})
+# handle speechsynthesizer removals
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    list(FILTER soh__Enhancements EXCLUDE REGEX "soh/Enhancements/speechsynthesizer/Darwin*")
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    list(FILTER soh__Enhancements EXCLUDE REGEX "soh/Enhancements/speechsynthesizer/SAPI*")
+else()
+    list(FILTER soh__Enhancements EXCLUDE REGEX "soh/Enhancements/speechsynthesizer/(Darwin|SAPI).*")
+endif()
 
-set(Source_Files__src__buffers
-    "src/buffers/gfxbuffers.c"
-    "src/buffers/heaps.c"
-    "src/buffers/zbuffer.c"
-)
-source_group("Source Files\\src\\buffers" FILES ${Source_Files__src__buffers})
+source_group("soh\\Enhancements" REGULAR_EXPRESSION "soh/Enhancements/*")
+source_group("soh\\Enhancements\\audio" REGULAR_EXPRESSION "soh/Enhancements/audio/*")
+source_group("soh\\Enhancements\\controls" REGULAR_EXPRESSION "soh/Enhancements/controls/*")
+source_group("soh\\Enhancements\\cosmetics" REGULAR_EXPRESSION "soh/Enhancements/cosmetics/*")
+source_group("soh\\Enhancements\\crowd-control" REGULAR_EXPRESSION "soh/Enhancements/crowd-control/*")
+source_group("soh\\Enhancements\\custom-message" REGULAR_EXPRESSION "soh/Enhancements/custom-message/*")
+source_group("soh\\Enhancements\\debugger" REGULAR_EXPRESSION "soh/Enhancements/debugger/*")
+source_group("soh\\Enhancements\\game-interactor" REGULAR_EXPRESSION "soh/Enhancements/game-interactor/*")
+source_group("soh\\Enhancements\\item-tables" REGULAR_EXPRESSION "soh/Enhancements/item-tables/*")
+source_group("soh\\Enhancements\\randomizer" REGULAR_EXPRESSION "soh/Enhancements/randomizer/*")
+source_group("soh\\Enhancements\\randomizer\\3drando" REGULAR_EXPRESSION "soh/Enhancements/randomizer/3drando/*")
+source_group("soh\\Enhancements\\randomizer\\3drando\\hint_list" REGULAR_EXPRESSION "soh/Enhancements/randomizer/3drando/hint_list/*")
+source_group("soh\\Enhancements\\randomizer\\3drando\\location_access" REGULAR_EXPRESSION "soh/Enhancements/randomizer/3drando/location_access/*")
+source_group("soh\\Enhancements\\speechsynthesizer" REGULAR_EXPRESSION "soh/Enhancements/speechsynthesizer/*")
+source_group("soh\\Enhancements\\tts" REGULAR_EXPRESSION "soh/Enhancements/tts/*")
 
-set(Source_Files__src__code
-    "src/code/__osMalloc.c"
-    "src/code/audio_data.c"
-    "src/code/audio_effects.c"
-    "src/code/audio_heap.c"
-    "src/code/audio_init_params.c"
-    "src/code/audio_load.c"
-    "src/code/audio_playback.c"
-    "src/code/audio_seqplayer.c"
-    "src/code/audio_sound_params.c"
-    "src/code/audio_synthesis.c"
-    "src/code/audioMgr.c"
-    "src/code/code_800430A0.c"
-    "src/code/code_80043480.c"
-    "src/code/code_8006C3A0.c"
-    "src/code/code_8006C510.c"
-    "src/code/code_80097A00.c"
-    "src/code/code_800A9F30.c"
-    "src/code/code_800ACE70.c"
-    "src/code/code_800AD920.c"
-    "src/code/code_800BB0A0.c"
-    "src/code/code_800C3C20.c"
-    "src/code/code_800D2E30.c"
-    "src/code/code_800D31A0.c"
-    "src/code/code_800E4FE0.c"
-    "src/code/code_800E6840.c"
-    "src/code/code_800EC960.c"
-    "src/code/code_800F7260.c"
-    "src/code/code_800F9280.c"
-    "src/code/code_800FBCE0.c"
-    "src/code/code_800FC620.c"
-    "src/code/code_800FCE80.c"
-    "src/code/code_800FD970.c"
-    "src/code/code_801067F0.c"
-    "src/code/code_801068B0.c"
-    "src/code/db_camera.c"
-    "src/code/debug_malloc.c"
-    "src/code/fault.c"
-    "src/code/fault_drawer.c"
-    "src/code/flg_set.c"
-    "src/code/game.c"
-    "src/code/gamealloc.c"
-    "src/code/gfxprint.c"
-    "src/code/graph.c"
-    "src/code/irqmgr.c"
-    "src/code/jpegdecoder.c"
-    "src/code/jpegutils.c"
-    "src/code/listalloc.c"
-    "src/code/loadfragment2.c"
-    "src/code/logseverity.c"
-    "src/code/main.c"
-    "src/code/mempak.c"
-    "src/code/mtxuty-cvt.c"
-    "src/code/padmgr.c"
-    "src/code/padsetup.c"
-    "src/code/padutils.c"
-    "src/code/PreRender.c"
-    "src/code/printutils.c"
-    "src/code/relocation.c"
-    "src/code/sched.c"
-    "src/code/shrink_window.c"
-    "src/code/sleep.c"
-    "src/code/speed_meter.c"
-    "src/code/sys_cfb.c"
-    "src/code/sys_math.c"
-    "src/code/sys_math3d.c"
-    "src/code/sys_math_atan.c"
-    "src/code/sys_matrix.c"
-    "src/code/sys_ucode.c"
-    "src/code/system_malloc.c"
-    "src/code/title_setup.c"
-    "src/code/TwoHeadArena.c"
-    "src/code/ucode_disas.c"
-    "src/code/z_actor.c"
-    "src/code/z_actor_dlftbls.c"
-    "src/code/z_bgcheck.c"
-    "src/code/z_camera.c"
-    "src/code/z_cheap_proc.c"
-    "src/code/z_collision_btltbls.c"
-    "src/code/z_collision_check.c"
-    "src/code/z_common_data.c"
-    "src/code/z_construct.c"
-    "src/code/z_debug.c"
-    "src/code/z_debug_display.c"
-    "src/code/z_demo.c"
-    "src/code/z_DLF.c"
-    "src/code/z_draw.c"
-    "src/code/z_eff_blure.c"
-    "src/code/z_eff_shield_particle.c"
-    "src/code/z_eff_spark.c"
-    "src/code/z_eff_ss_dead.c"
-    "src/code/z_effect.c"
-    "src/code/z_effect_soft_sprite.c"
-    "src/code/z_effect_soft_sprite_dlftbls.c"
-    "src/code/z_effect_soft_sprite_old_init.c"
-    "src/code/z_elf_message.c"
-    "src/code/z_en_a_keep.c"
-    "src/code/z_en_item00.c"
-    "src/code/z_face_reaction.c"
-    "src/code/z_fbdemo.c"
-    "src/code/z_fbdemo_circle.c"
-    "src/code/z_fbdemo_fade.c"
-    "src/code/z_fbdemo_triforce.c"
-    "src/code/z_fbdemo_wipe1.c"
-    "src/code/z_fcurve_data_skelanime.c"
-    "src/code/z_frame_advance.c"
-    "src/code/z_game_dlftbls.c"
-    "src/code/z_game_over.c"
-    "src/code/z_horse.c"
-    "src/code/z_jpeg.c"
-    "src/code/z_kaleido_manager.c"
-    "src/code/z_kaleido_scope_call.c"
-    "src/code/z_kaleido_setup.c"
-    "src/code/z_kanfont.c"
-    "src/code/z_kankyo.c"
-    "src/code/z_lib.c"
-    "src/code/z_lifemeter.c"
-    "src/code/z_lights.c"
-    "src/code/z_malloc.c"
-    "src/code/z_map_data.c"
-    "src/code/z_map_exp.c"
-    "src/code/z_map_mark.c"
-    "src/code/z_message_PAL.c"
-    "src/code/z_moji.c"
-    "src/code/z_msgevent.c"
-    "src/code/z_olib.c"
-    "src/code/z_onepointdemo.c"
-    "src/code/z_onepointdemo_data.inc"
-    "src/code/z_parameter.c"
-    "src/code/z_path.c"
-    "src/code/z_play.c"
-    "src/code/z_player_call.c"
-    "src/code/z_player_lib.c"
-    "src/code/z_prenmi.c"
-    "src/code/z_prenmi_buff.c"
-    "src/code/z_quake.c"
-    "src/code/z_rcp.c"
-    "src/code/z_room.c"
-    "src/code/z_sample.c"
-    "src/code/z_scene.c"
-    "src/code/z_scene_table.c"
-    "src/code/z_skelanime.c"
-    "src/code/z_skin.c"
-    "src/code/z_skin_awb.c"
-    "src/code/z_skin_matrix.c"
-    "src/code/z_sound_source.c"
-    "src/code/z_sram.c"
-    "src/code/z_ss_sram.c"
-    "src/code/z_view.c"
-    "src/code/z_vimode.c"
-    "src/code/z_vismono.c"
-    "src/code/z_vr_box.c"
-    "src/code/z_vr_box_draw.c"
-)
-source_group("Source Files\\src\\code" FILES ${Source_Files__src__code})
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set_source_files_properties(soh/Enhancements/tts/tts.cpp PROPERTIES COMPILE_FLAGS "/utf-8")
+endif()
+# }}}
 
-set(Source_Files__src__libultra
-    "src/libultra/gu/coss.c"
-    "src/libultra/gu/guLookAt.c"
-    "src/libultra/gu/guLookAtHilite.c"
-    "src/libultra/gu/guPerspectiveF.c"
-    "src/libultra/gu/guPosition.c"
-    "src/libultra/gu/guS2DInitBg.c"
-    "src/libultra/gu/ortho.c"
-    "src/libultra/gu/rotate.c"
-    "src/libultra/gu/sins.c"
-    "src/libultra/gu/sintable.c"
-    "src/libultra/libc/sprintf.c"
-)
-source_group("Source Files\\src\\libultra" FILES ${Source_Files__src__libultra})
+if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+    # soh/Extractor {{{
+    file(GLOB_RECURSE soh__Extractor RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+        "soh/Extractor/*.c"
+        "soh/Extractor/*.cpp"
+        "soh/Extractor/*.h"
+        "soh/Extractor/*.hpp"
+    )
+    # }}}
+else()
+    file(GLOB_RECURSE soh__Extractor RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+        "soh/Extractor/*.h"
+        "soh/Extractor/*.hpp"
+    )
+# }}}
+endif()
 
 set(Source_Files__src__overlays__actors
     "src/overlays/actors/ovl_Arms_Hook/z_arms_hook.c"
@@ -1485,169 +1086,61 @@ set(Source_Files__src__overlays__actors
 )
 source_group("Source Files\\src\\overlays\\actors" FILES ${Source_Files__src__overlays__actors})
 
-set(Source_Files__src__overlays__effects
-    "src/overlays/effects/ovl_Effect_Ss_Blast/z_eff_ss_blast.c"
-    "src/overlays/effects/ovl_Effect_Ss_Blast/z_eff_ss_blast.h"
-    "src/overlays/effects/ovl_Effect_Ss_Bomb/z_eff_ss_bomb.c"
-    "src/overlays/effects/ovl_Effect_Ss_Bomb/z_eff_ss_bomb.h"
-    "src/overlays/effects/ovl_Effect_Ss_Bomb2/z_eff_ss_bomb2.c"
-    "src/overlays/effects/ovl_Effect_Ss_Bomb2/z_eff_ss_bomb2.h"
-    "src/overlays/effects/ovl_Effect_Ss_Bubble/z_eff_ss_bubble.c"
-    "src/overlays/effects/ovl_Effect_Ss_Bubble/z_eff_ss_bubble.h"
-    "src/overlays/effects/ovl_Effect_Ss_D_Fire/z_eff_ss_d_fire.c"
-    "src/overlays/effects/ovl_Effect_Ss_D_Fire/z_eff_ss_d_fire.h"
-    "src/overlays/effects/ovl_Effect_Ss_Dead_Db/z_eff_ss_dead_db.c"
-    "src/overlays/effects/ovl_Effect_Ss_Dead_Db/z_eff_ss_dead_db.h"
-    "src/overlays/effects/ovl_Effect_Ss_Dead_Dd/z_eff_ss_dead_dd.c"
-    "src/overlays/effects/ovl_Effect_Ss_Dead_Dd/z_eff_ss_dead_dd.h"
-    "src/overlays/effects/ovl_Effect_Ss_Dead_Ds/z_eff_ss_dead_ds.c"
-    "src/overlays/effects/ovl_Effect_Ss_Dead_Ds/z_eff_ss_dead_ds.h"
-    "src/overlays/effects/ovl_Effect_Ss_Dead_Sound/z_eff_ss_dead_sound.c"
-    "src/overlays/effects/ovl_Effect_Ss_Dead_Sound/z_eff_ss_dead_sound.h"
-    "src/overlays/effects/ovl_Effect_Ss_Dt_Bubble/z_eff_ss_dt_bubble.c"
-    "src/overlays/effects/ovl_Effect_Ss_Dt_Bubble/z_eff_ss_dt_bubble.h"
-    "src/overlays/effects/ovl_Effect_Ss_Dust/z_eff_ss_dust.c"
-    "src/overlays/effects/ovl_Effect_Ss_Dust/z_eff_ss_dust.h"
-    "src/overlays/effects/ovl_Effect_Ss_En_Fire/z_eff_ss_en_fire.c"
-    "src/overlays/effects/ovl_Effect_Ss_En_Fire/z_eff_ss_en_fire.h"
-    "src/overlays/effects/ovl_Effect_Ss_En_Ice/z_eff_ss_en_ice.c"
-    "src/overlays/effects/ovl_Effect_Ss_En_Ice/z_eff_ss_en_ice.h"
-    "src/overlays/effects/ovl_Effect_Ss_Extra/z_eff_ss_extra.c"
-    "src/overlays/effects/ovl_Effect_Ss_Extra/z_eff_ss_extra.h"
-    "src/overlays/effects/ovl_Effect_Ss_Fcircle/z_eff_ss_fcircle.c"
-    "src/overlays/effects/ovl_Effect_Ss_Fcircle/z_eff_ss_fcircle.h"
-    "src/overlays/effects/ovl_Effect_Ss_Fhg_Flash/z_eff_ss_fhg_flash.c"
-    "src/overlays/effects/ovl_Effect_Ss_Fhg_Flash/z_eff_ss_fhg_flash.h"
-    "src/overlays/effects/ovl_Effect_Ss_Fire_Tail/z_eff_ss_fire_tail.c"
-    "src/overlays/effects/ovl_Effect_Ss_Fire_Tail/z_eff_ss_fire_tail.h"
-    "src/overlays/effects/ovl_Effect_Ss_G_Fire/z_eff_ss_g_fire.c"
-    "src/overlays/effects/ovl_Effect_Ss_G_Fire/z_eff_ss_g_fire.h"
-    "src/overlays/effects/ovl_Effect_Ss_G_Magma/z_eff_ss_g_magma.c"
-    "src/overlays/effects/ovl_Effect_Ss_G_Magma/z_eff_ss_g_magma.h"
-    "src/overlays/effects/ovl_Effect_Ss_G_Magma2/z_eff_ss_g_magma2.c"
-    "src/overlays/effects/ovl_Effect_Ss_G_Magma2/z_eff_ss_g_magma2.h"
-    "src/overlays/effects/ovl_Effect_Ss_G_Ripple/z_eff_ss_g_ripple.c"
-    "src/overlays/effects/ovl_Effect_Ss_G_Ripple/z_eff_ss_g_ripple.h"
-    "src/overlays/effects/ovl_Effect_Ss_G_Spk/z_eff_ss_g_spk.c"
-    "src/overlays/effects/ovl_Effect_Ss_G_Spk/z_eff_ss_g_spk.h"
-    "src/overlays/effects/ovl_Effect_Ss_G_Splash/z_eff_ss_g_splash.c"
-    "src/overlays/effects/ovl_Effect_Ss_G_Splash/z_eff_ss_g_splash.h"
-    "src/overlays/effects/ovl_Effect_Ss_Hahen/z_eff_ss_hahen.c"
-    "src/overlays/effects/ovl_Effect_Ss_Hahen/z_eff_ss_hahen.h"
-    "src/overlays/effects/ovl_Effect_Ss_HitMark/z_eff_ss_hitmark.c"
-    "src/overlays/effects/ovl_Effect_Ss_HitMark/z_eff_ss_hitmark.h"
-    "src/overlays/effects/ovl_Effect_Ss_Ice_Piece/z_eff_ss_ice_piece.c"
-    "src/overlays/effects/ovl_Effect_Ss_Ice_Piece/z_eff_ss_ice_piece.h"
-    "src/overlays/effects/ovl_Effect_Ss_Ice_Smoke/z_eff_ss_ice_smoke.c"
-    "src/overlays/effects/ovl_Effect_Ss_Ice_Smoke/z_eff_ss_ice_smoke.h"
-    "src/overlays/effects/ovl_Effect_Ss_K_Fire/z_eff_ss_k_fire.c"
-    "src/overlays/effects/ovl_Effect_Ss_K_Fire/z_eff_ss_k_fire.h"
-    "src/overlays/effects/ovl_Effect_Ss_Kakera/z_eff_ss_kakera.c"
-    "src/overlays/effects/ovl_Effect_Ss_Kakera/z_eff_ss_kakera.h"
-    "src/overlays/effects/ovl_Effect_Ss_KiraKira/z_eff_ss_kirakira.c"
-    "src/overlays/effects/ovl_Effect_Ss_KiraKira/z_eff_ss_kirakira.h"
-    "src/overlays/effects/ovl_Effect_Ss_Lightning/z_eff_ss_lightning.c"
-    "src/overlays/effects/ovl_Effect_Ss_Lightning/z_eff_ss_lightning.h"
-    "src/overlays/effects/ovl_Effect_Ss_Sibuki/z_eff_ss_sibuki.c"
-    "src/overlays/effects/ovl_Effect_Ss_Sibuki/z_eff_ss_sibuki.h"
-    "src/overlays/effects/ovl_Effect_Ss_Sibuki2/z_eff_ss_sibuki2.c"
-    "src/overlays/effects/ovl_Effect_Ss_Sibuki2/z_eff_ss_sibuki2.h"
-    "src/overlays/effects/ovl_Effect_Ss_Solder_Srch_Ball/z_eff_ss_solder_srch_ball.c"
-    "src/overlays/effects/ovl_Effect_Ss_Solder_Srch_Ball/z_eff_ss_solder_srch_ball.h"
-    "src/overlays/effects/ovl_Effect_Ss_Stick/z_eff_ss_stick.c"
-    "src/overlays/effects/ovl_Effect_Ss_Stick/z_eff_ss_stick.h"
-    "src/overlays/effects/ovl_Effect_Ss_Stone1/z_eff_ss_stone1.c"
-    "src/overlays/effects/ovl_Effect_Ss_Stone1/z_eff_ss_stone1.h"
-)
-source_group("Source Files\\src\\overlays\\effects" FILES ${Source_Files__src__overlays__effects})
+source_group("soh\\resource\\type" REGULAR_EXPRESSION "soh/resource/type/*")
+source_group("soh\\resource\\type\\scenecommand" REGULAR_EXPRESSION "soh/resource/type/scenecommand/*")
+source_group("soh\\resource\\importer" REGULAR_EXPRESSION "soh/resource/importer/*")
+source_group("soh\\resource\\importer\\scenecommand" REGULAR_EXPRESSION "soh/resource/importer/scenecommand/*")
+# }}}
 
-set(Source_Files__src__overlays__gamestates__ovl_file_choose
-    "src/overlays/gamestates/ovl_file_choose/z_file_choose.c"
-    "src/overlays/gamestates/ovl_file_choose/z_file_copy_erase.c"
-    "src/overlays/gamestates/ovl_file_choose/z_file_nameset_data.c"
-    "src/overlays/gamestates/ovl_file_choose/z_file_nameset_PAL.c"
-)
-source_group("Source Files\\src\\overlays\\gamestates\\ovl_file_choose" FILES ${Source_Files__src__overlays__gamestates__ovl_file_choose})
+# src (decomp) {{{
+file(GLOB_RECURSE src__ RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.c" "src/*.h")
 
-set(Source_Files__src__overlays__gamestates__ovl_opening
-    "src/overlays/gamestates/ovl_opening/z_opening.c"
-)
-source_group("Source Files\\src\\overlays\\gamestates\\ovl_opening" FILES ${Source_Files__src__overlays__gamestates__ovl_opening})
+list(APPEND src__ ${CMAKE_BINARY_DIR}/build.c)
+list(APPEND src__ ${CMAKE_CURRENT_SOURCE_DIR}/properties.h)
+list(APPEND src__ ${CMAKE_CURRENT_SOURCE_DIR}/Resource.rc)
+list(FILTER src__ EXCLUDE REGEX "src/dmadata/*")
+list(FILTER src__ EXCLUDE REGEX "src/elf_message/*")
+list(FILTER src__ EXCLUDE REGEX "src/libultra/io/*")
+list(FILTER src__ EXCLUDE REGEX "src/libultra/libc/*")
+list(FILTER src__ EXCLUDE REGEX "src/libultra/os/*")
+list(FILTER src__ EXCLUDE REGEX "src/libultra/rmon/*")
+list(APPEND src__ "src/libultra/libc/sprintf.c")
+list(REMOVE_ITEM src__ "src/libultra/gu/cosf.c")
+list(REMOVE_ITEM src__ "src/libultra/gu/lookat.c")
+list(REMOVE_ITEM src__ "src/libultra/gu/lookathil.c")
+list(REMOVE_ITEM src__ "src/libultra/gu/perspective.c")
+list(REMOVE_ITEM src__ "src/libultra/gu/position.c")
+list(REMOVE_ITEM src__ "src/libultra/gu/sinf.c")
+list(REMOVE_ITEM src__ "src/libultra/gu/sinf.c")
+list(REMOVE_ITEM src__ "src/libultra/gu/sqrtf.c")
+list(REMOVE_ITEM src__ "src/libultra/gu/us2dex.c")
 
-set(Source_Files__src__overlays__gamestates__ovl_select
-    "src/overlays/gamestates/ovl_select/z_select.c"
-)
-source_group("Source Files\\src\\overlays\\gamestates\\ovl_select" FILES ${Source_Files__src__overlays__gamestates__ovl_select})
-
-set(Source_Files__src__overlays__gamestates__ovl_title
-    "src/overlays/gamestates/ovl_title/z_title.c"
-)
-source_group("Source Files\\src\\overlays\\gamestates\\ovl_title" FILES ${Source_Files__src__overlays__gamestates__ovl_title})
-
-set(Source_Files__src__overlays__misc__ovl_kaleido_scope
-    #"src/overlays/actors/ovl_kaleido_scope/z_kaleido_scope.h"
-    "src/overlays/misc/ovl_kaleido_scope/z_kaleido_collect.c"
-    "src/overlays/misc/ovl_kaleido_scope/z_kaleido_debug.c"
-    "src/overlays/misc/ovl_kaleido_scope/z_kaleido_equipment.c"
-    "src/overlays/misc/ovl_kaleido_scope/z_kaleido_item.c"
-    "src/overlays/misc/ovl_kaleido_scope/z_kaleido_map_PAL.c"
-    "src/overlays/misc/ovl_kaleido_scope/z_kaleido_prompt.c"
-    "src/overlays/misc/ovl_kaleido_scope/z_kaleido_scope.h"
-    "src/overlays/misc/ovl_kaleido_scope/z_kaleido_scope_PAL.c"
-    "src/overlays/misc/ovl_kaleido_scope/z_lmap_mark.c"
-    "src/overlays/misc/ovl_kaleido_scope/z_lmap_mark_data.c"
-)
-source_group("Source Files\\src\\overlays\\misc\\ovl_kaleido_scope" FILES ${Source_Files__src__overlays__misc__ovl_kaleido_scope})
-
-set(Source_Files__src__overlays__misc__ovl_map_mark_data
-    "src/overlays/misc/ovl_map_mark_data/z_map_mark_data.c"
-)
-source_group("Source Files\\src\\overlays\\misc\\ovl_map_mark_data" FILES ${Source_Files__src__overlays__misc__ovl_map_mark_data})
+source_group("src" REGULAR_EXPRESSION "src/*")
+source_group("src\\build" FILES ${CMAKE_BINARY_DIR}/build.c ${CMAKE_CURRENT_SOURCE_DIR}/properties.h ${CMAKE_CURRENT_SOURCE_DIR}/Resource.rc)
+source_group("src\\boot" REGULAR_EXPRESSION "src/boot/*")
+source_group("src\\buffers" REGULAR_EXPRESSION "src/buffers/*")
+source_group("src\\code" REGULAR_EXPRESSION "src/code/*")
+source_group("src\\libultra" REGULAR_EXPRESSION "src/libultra/*")
+source_group("src\\overlays\\actors" REGULAR_EXPRESSION "src/overlays/actors/*")
+source_group("src\\overlays\\effects" REGULAR_EXPRESSION "src/overlays/effects/*")
+source_group("src\\overlays\\gamestates" REGULAR_EXPRESSION  "src/overlays/gamestates/*")
+source_group("src\\overlays\\misc" REGULAR_EXPRESSION  "src/overlays/misc/*")
+# }}}
 
 set(ALL_FILES
     ${Header_Files}
     ${Header_Files__include}
-    ${Header_Files__soh__Enhancements}
-    ${Header_Files__soh__Enhancements__controls}
-    ${Header_Files__soh__Enhancements__cosmetics}
-    ${Header_Files__soh__Enhancements__sfx_editor}
-    ${Header_Files__soh__Enhancements__debugger}
-    ${Header_Files__soh__Enhancements__randomizer}
-    ${Header_Files__soh__Enhancements__randomizer__3drando}
-    ${Header_Files__soh__Enhancements__item_tables}
-    ${Header_Files__soh__Enhancements__custom_message}
-    ${Header_Files__soh__Enhancements__crowd_control}
-    ${Source_Files__soh}
-    ${Source_Files__soh__Enhancements}
-    ${Source_Files__soh__Enhancements__controls}
-    ${Source_Files__soh__Enhancements__cosmetics}
-    ${Source_Files__soh__Enhancements__sfx_editor}
-    ${Source_Files__soh__Enhancements__debugger}
-    ${Source_Files__soh__Enhancements__randomizer}
-    ${Source_Files__soh__Enhancements__randomizer__3drando}
-    ${Source_Files__soh__Enhancements__randomizer__3drando__hint_list}
-    ${Source_Files__soh__Enhancements__randomizer__3drando__location_access}
-    ${Source_Files__soh__Enhancements__item_tables}
-    ${Source_Files__soh__Enhancements__custom_message}
-    ${Source_Files__soh__Enhancements__crowd_control}
-    ${Source_Files__src__boot}
-    ${Source_Files__src__buffers}
-    ${Source_Files__src__code}
-    ${Source_Files__src__libultra}
-    ${Source_Files__src__overlays__actors}
-    ${Source_Files__src__overlays__effects}
-    ${Source_Files__src__overlays__gamestates__ovl_file_choose}
-    ${Source_Files__src__overlays__gamestates__ovl_opening}
-    ${Source_Files__src__overlays__gamestates__ovl_select}
-    ${Source_Files__src__overlays__gamestates__ovl_title}
-    ${Source_Files__src__overlays__misc__ovl_kaleido_scope}
-    ${Source_Files__src__overlays__misc__ovl_map_mark_data}
+    ${soh__}
+    ${soh__Enhancements}
+    ${soh__Extractor}
+    ${soh__Resource}
+    ${src__}
 )
 
 ################################################################################
 # Target
 ################################################################################
-add_executable(${PROJECT_NAME} ${ALL_FILES} ${CMAKE_CURRENT_SOURCE_DIR}/Resource.rc)
+add_executable(${PROJECT_NAME} ${ALL_FILES})
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 use_props(${PROJECT_NAME} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
@@ -1670,7 +1163,8 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	endif()
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set_target_properties(${PROJECT_NAME} PROPERTIES
-    OUTPUT_NAME "soh-macos"
+        XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES 
+        OUTPUT_NAME "soh-macos"
     )
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -1706,6 +1200,32 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	set_target_properties(${PROJECT_NAME} PROPERTIES MSVC_RUNTIME_LIBRARY ${MSVC_RUNTIME_LIBRARY_STR})
 endif()
 ################################################################################
+# Find/download Boost
+################################################################################
+include(FetchContent)
+FetchContent_Declare(
+    Boost
+    URL      https://boostorg.jfrog.io/artifactory/main/release/1.81.0/source/boost_1_81_0.tar.gz
+    URL_HASH SHA256=205666dea9f6a7cfed87c7a6dfbeb52a2c1b9de55712c9c1a87735d7181452b6
+    SOURCE_SUBDIR "null" # Set to a nonexistent directory so boost is not built (we don't need to build it)
+    DOWNLOAD_EXTRACT_TIMESTAMP false # supress timestamp warning, not needed since the url wont change
+)
+
+set(Boost_NO_BOOST_CMAKE false)
+set(BOOST_INCLUDEDIR ${FETCHCONTENT_BASE_DIR}/boost-src) # Location where FetchContent stores the source
+message("Searching for Boost installation")
+find_package(Boost)
+
+if (NOT ${Boost_FOUND})
+    message("Boost not found. Downloading now...")
+    FetchContent_MakeAvailable(Boost)
+    message("Boost downloaded to " ${FETCHCONTENT_BASE_DIR}/boost-src)
+    set(BOOST-INCLUDE ${FETCHCONTENT_BASE_DIR}/boost-src)
+else()
+    message("Boost found in " ${Boost_INCLUDE_DIRS})
+    set(BOOST-INCLUDE ${Boost_INCLUDE_DIRS})
+endif()
+################################################################################
 # Compile definitions
 ################################################################################
 find_package(SDL2)
@@ -1720,13 +1240,29 @@ target_include_directories(${PROJECT_NAME} PRIVATE assets
 	${CMAKE_CURRENT_SOURCE_DIR}/include/
 	${CMAKE_CURRENT_SOURCE_DIR}/src/
     ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/src/binarytools
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/src/log
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/src/debug
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/src/menu
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/src/misc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/src/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/src/resource
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/src/resource/type
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/src/audio
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/extern
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/extern/Mercury
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/extern/tinyxml2
     ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/libultraship/Lib/
 	${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/libultraship/Lib/libjpeg/include/
 	${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/libultraship/Lib/spdlog/include/
-    ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/libultraship/Lib/Fast3D/U64/PR
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/src/graphic/Fast3D/U64/PR
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/src/graphic
 	${CMAKE_CURRENT_SOURCE_DIR}/../ZAPDTR/ZAPDUtils
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ZAPDTR/ZAPD/resource/type
 	${SDL2-INCLUDE}
     ${SDL2-NET-INCLUDE}
+    ${BOOST-INCLUDE}
 	${CMAKE_CURRENT_SOURCE_DIR}/assets/
 	.
 )
@@ -1819,6 +1355,7 @@ if(MSVC)
             ${DEFAULT_CXX_DEBUG_INFORMATION_FORMAT};
             ${DEFAULT_CXX_EXCEPTION_HANDLING}
         )
+        target_compile_options(${PROJECT_NAME} PRIVATE  $<$<CONFIG:Debug>:/ZI;>)
     elseif("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "Win32")
         target_compile_options(${PROJECT_NAME} PRIVATE
             $<$<CONFIG:Debug>:
@@ -1845,11 +1382,11 @@ if(MSVC)
             $<$<CONFIG:Release>:
                 /OPT:REF;
                 /OPT:ICF;
-                /INCREMENTAL:NO
+                /INCREMENTAL:NO;
+                /FORCE:MULTIPLE
             >
             /DEBUG;
-            /SUBSYSTEM:WINDOWS;
-            /FORCE:MULTIPLE
+            /SUBSYSTEM:WINDOWS
         )
     elseif("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "Win32")
         target_link_options(${PROJECT_NAME} PRIVATE
@@ -1971,6 +1508,17 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 		COMMAND   $<CONFIG:Debug> copy /b $<SHELL_PATH:${CMAKE_BINARY_DIR}/>build.c +,,
 	)
 endif()
+
+if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+    add_custom_command(
+		TARGET ${PROJECT_NAME}
+		POST_BUILD
+		COMMENT "Copying asset xmls..."
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/OTRGui/assets $<TARGET_FILE_DIR:soh>/assets
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/soh/assets/xml $<TARGET_FILE_DIR:soh>/assets/extractor/xmls
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/OTRExporter/assets $<TARGET_FILE_DIR:soh>/Extract/assets
+	)
+endif()
 ################################################################################
 # Dependencies
 ################################################################################
@@ -1978,12 +1526,18 @@ add_dependencies(${PROJECT_NAME}
     ZAPDUtils
     libultraship
 )
+if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+add_dependencies(${PROJECT_NAME}
+    ZAPDLib
+)
+endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	if("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "x64")
 		set(ADDITIONAL_LIBRARY_DEPENDENCIES
 			"libultraship;"
 			"ZAPDUtils;"
+			"ZAPDLib;"
 			"glu32;"
 			"SDL2::SDL2;"
 			"SDL2::SDL2main;"
@@ -1998,6 +1552,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 		set(ADDITIONAL_LIBRARY_DEPENDENCIES
 			"libultraship;"
 			"ZAPDUtils;"
+			"ZAPDLib;"
 			"glu32;"
 			"SDL2::SDL2;"
 			"SDL2::SDL2main;"
@@ -2023,7 +1578,6 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
     find_package(SDL2 REQUIRED)
     set(ADDITIONAL_LIBRARY_DEPENDENCIES
         "libultraship;"
-        "ZAPDUtils;"
         SDL2::SDL2-static
 
         "$<$<CONFIG:Debug>:-Wl,--wrap=abort>"
@@ -2038,6 +1592,7 @@ else()
  	set(ADDITIONAL_LIBRARY_DEPENDENCIES
         "libultraship;"
         "ZAPDUtils;"
+		"ZAPDLib;"
 		SDL2::SDL2
         "$<$<BOOL:${BUILD_CROWD_CONTROL}>:SDL2_net::SDL2_net>"
 		${CMAKE_DL_LIBS}
@@ -2059,6 +1614,7 @@ execute_process(COMMAND ${CURL} -sSfL https://raw.githubusercontent.com/gabomdq/
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
 configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/macosx/Info.plist.in ${CMAKE_BINARY_DIR}/macosx/Info.plist @ONLY)
 INSTALL(FILES ${CMAKE_BINARY_DIR}/gamecontrollerdb.txt DESTINATION ../MacOS COMPONENT ship)
+INSTALL(FILES ${CMAKE_BINARY_DIR}/soh/soh.otr DESTINATION ../Resources COMPONENT ship)
 elseif(NOT "${CMAKE_SYSTEM_NAME}" MATCHES "NintendoSwitch|CafeOS")
 INSTALL(FILES ${CMAKE_BINARY_DIR}/gamecontrollerdb.txt DESTINATION . COMPONENT ship)
 endif()

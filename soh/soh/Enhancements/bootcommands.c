@@ -2,15 +2,13 @@
 #include "gameconsole.h"
 #include <macros.h>
 #include <z64.h>
-#include <ultra64.h>
+#include <libultraship/libultra.h>
+#include <libultraship/bridge.h>
 #include <functions.h>
 #include <variables.h>
 #include <string.h>
 #include <stdarg.h>
 #include <z64.h>
-#include <ultra64/gbi.h>
-#include <ultra64/gs2dex.h>
-#include <ultra64/controller.h>
 
 uint8_t gLoadFileSelect = 0, gSkipLogoTest = 0;
 
@@ -38,6 +36,12 @@ void BootCommands_Init()
     CVar_RegisterS32("gObjectCue", 0);
 #elif defined(__SWITCH__) || defined(__WIIU__)
     CVar_RegisterS32("gControlNav", 1); // always enable controller nav on switch/wii u
+    // Clears vars to prevent randomizer menu from being disabled
+    CVarClear("gRandoGenerating"); // Clear when a crash happened during rando seed generation
+    CVarClear("gNewSeedGenerated");
+    CVarClear("gOnFileSelectNameEntry"); // Clear when soh is killed on the file name entry page
+#if defined(__SWITCH__) || defined(__WIIU__)
+    CVarRegisterInteger("gControlNav", 1); // always enable controller nav on switch/wii u
 #endif
 }
 

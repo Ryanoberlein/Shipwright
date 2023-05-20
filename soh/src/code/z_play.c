@@ -4,9 +4,11 @@
 #include <string.h>
 
 #include "soh/Enhancements/gameconsole.h"
-#include <libultraship/ImGuiImpl.h>
+#include <ImGuiImpl.h>
 #include "soh/frame_interpolation.h"
 #include "soh/Enhancements/debugconsole.h"
+#include "soh/Enhancements/game-interactor/GameInteractor.h"
+#include "soh/Enhancements/randomizer/randomizer_entrance.h"
 #include <overlays/actors/ovl_En_Niw/z_en_niw.h>
 
 #include <time.h>
@@ -158,6 +160,17 @@ void Play_Destroy(GameState* thisx) {
     PlayState* play = (PlayState*)thisx;
     Player* player = GET_PLAYER(play);
 
+
+    // Only initialize the frame counter when exiting the title screen
+    if (gSaveContext.fileNum == 0xFF) {
+        play->gameplayFrames = 0;
+    }
+
+    // In ER, remove link from epona when entering somewhere that doesn't support epona
+    if (gSaveContext.n64ddFlag && Randomizer_GetSettingValue(RSK_SHUFFLE_OVERWORLD_ENTRANCES)) {
+        Entrance_HandleEponaState();
+    }
+
     play->state.gfxCtx->callback = NULL;
     play->state.gfxCtx->callbackParam = 0;
     SREG(91) = 0;
@@ -202,7 +215,7 @@ void GivePlayerRandoRewardSongOfTime(PlayState* play, RandomizerCheck check) {
     Player* player = GET_PLAYER(play);
 
     if (gSaveContext.entranceIndex == 0x050F && player != NULL && !Player_InBlockingCsMode(play, player) &&
-        !Flags_GetTreasure(play, 0x1F) && gSaveContext.nextTransition == 0xFF && !gSaveContext.pendingIceTrapCount) {
+        !Flags_GetTreasure(play, 0x1F) && gSaveContext.nextTransitionType == 0xFF && !gSaveContext.pendingIceTrapCount) {
         GetItemEntry getItemEntry = Randomizer_GetItemFromKnownCheck(check, RG_SONG_OF_TIME);
         GiveItemEntryWithoutActor(play, getItemEntry);
         player->pendingFlag.flagID = 0x1F;
@@ -331,27 +344,27 @@ void GivePlayerRandoRewardZeldaLightArrowsGift(PlayState* play, RandomizerCheck 
     u8 meetsRequirements = 0;
 
     switch (Randomizer_GetSettingValue(RSK_GANONS_BOSS_KEY)) {
-        case 7:
+        case RO_GANON_BOSS_KEY_LACS_MEDALLIONS:
             if (CheckMedallionCount() >= Randomizer_GetSettingValue(RSK_LACS_MEDALLION_COUNT)) {
                 meetsRequirements = true;
             }
             break;
-        case 8:
+        case RO_GANON_BOSS_KEY_LACS_STONES:
             if (CheckStoneCount() >= Randomizer_GetSettingValue(RSK_LACS_STONE_COUNT)) {
                 meetsRequirements = true;
             }
             break;
-        case 9:
+        case RO_GANON_BOSS_KEY_LACS_REWARDS:
             if ((CheckMedallionCount() + CheckStoneCount()) >= Randomizer_GetSettingValue(RSK_LACS_REWARD_COUNT)) {
                 meetsRequirements = true;
             }
             break;
-        case 10:
+        case RO_GANON_BOSS_KEY_LACS_DUNGEONS:
             if (CheckDungeonCount() >= Randomizer_GetSettingValue(RSK_LACS_DUNGEON_COUNT)) {
                 meetsRequirements = true;
             }
             break;
-        case 11:
+        case RO_GANON_BOSS_KEY_LACS_TOKENS:
             if (gSaveContext.inventory.gsTokens >= Randomizer_GetSettingValue(RSK_LACS_TOKEN_COUNT)) {
                 meetsRequirements = true;
             }
@@ -415,10 +428,12 @@ void Play_Init(GameState* thisx) {
         }
     }
 
+    // Invalid entrance, so immediately exit the game to opening title
     if (gSaveContext.entranceIndex == -1) {
         gSaveContext.entranceIndex = 0;
         play->state.running = false;
         SET_NEXT_GAMESTATE(&play->state, Opening_Init, OpeningContext);
+        GameInteractor_ExecuteOnExitGame(gSaveContext.fileNum);
         return;
     }
 
@@ -448,7 +463,7 @@ void Play_Init(GameState* thisx) {
     play->cameraPtrs[MAIN_CAM]->uid = 0;
     play->activeCamera = MAIN_CAM;
     func_8005AC48(&play->mainCamera, 0xFF);
-    func_80112098(play);
+    Regs_InitData(play);
     Message_Init(play);
     GameOver_Init(play);
     SoundSource_InitAll(play);
@@ -512,6 +527,7 @@ void Play_Init(GameState* thisx) {
         play,
         gEntranceTable[((void)0, gSaveContext.entranceIndex) + ((void)0, gSaveContext.sceneSetupIndex)].scene,
         gEntranceTable[((void)0, gSaveContext.sceneSetupIndex) + ((void)0, gSaveContext.entranceIndex)].spawn);
+
     osSyncPrintf("\nSCENE_NO=%d COUNTER=%d\n", ((void)0, gSaveContext.entranceIndex), gSaveContext.sceneSetupIndex);
 
     Cutscene_HandleEntranceTriggers(play);
@@ -541,10 +557,10 @@ void Play_Init(GameState* thisx) {
     gTrnsnUnkState = 0;
     play->transitionMode = 0;
 
-    if (CVar_GetS32("gSceneTransitions", 255)!= 255){
-        play->transitionMode = CVar_GetS32("gSceneTransitions", 0);
-        gSaveContext.nextTransition = CVar_GetS32("gSceneTransitions", 0);
-        play->fadeTransition = CVar_GetS32("gSceneTransitions", 0);
+    if (CVarGetInteger("gSceneTransitions", 255)!= 255){
+        play->transitionMode = CVarGetInteger("gSceneTransitions", 0);
+        gSaveContext.nextTransitionType = CVarGetInteger("gSceneTransitions", 0);
+        play->fadeTransition = CVarGetInteger("gSceneTransitions", 0);
     }
 
     FrameAdvance_Init(&play->frameAdvCtx);
@@ -558,12 +574,12 @@ void Play_Init(GameState* thisx) {
     play->unk_11DE9 = 0;
 
     if (gSaveContext.gameMode != 1) {
-        if (gSaveContext.nextTransition == 0xFF) {
+        if (gSaveContext.nextTransitionType == 0xFF) {
             play->fadeTransition =
                 (gEntranceTable[((void)0, gSaveContext.entranceIndex) + tempSetupIndex].field >> 7) & 0x7F; // Fade In
         } else {
-            play->fadeTransition = gSaveContext.nextTransition;
-            gSaveContext.nextTransition = 0xFF;
+            play->fadeTransition = gSaveContext.nextTransitionType;
+            gSaveContext.nextTransitionType = 0xFF;
         }
     } else {
         play->fadeTransition = 6;
@@ -631,6 +647,33 @@ void Play_Init(GameState* thisx) {
     gSaveContext.natureAmbienceId = play->sequenceCtx.natureAmbienceId;
     func_8002DF18(play, GET_PLAYER(play));
     AnimationContext_Update(play, &play->animationCtx);
+
+    if (gSaveContext.sohStats.sceneNum != gPlayState->sceneNum) {
+        u16 idx = gSaveContext.sohStats.tsIdx;
+        gSaveContext.sohStats.sceneTimestamps[idx].sceneTime = gSaveContext.sohStats.sceneTimer / 2;
+        gSaveContext.sohStats.sceneTimestamps[idx].roomTime = gSaveContext.sohStats.roomTimer / 2;    
+        gSaveContext.sohStats.sceneTimestamps[idx].scene = gSaveContext.sohStats.sceneNum;
+        gSaveContext.sohStats.sceneTimestamps[idx].room = gSaveContext.sohStats.roomNum;
+        gSaveContext.sohStats.sceneTimestamps[idx].isRoom = 
+            gPlayState->sceneNum == gSaveContext.sohStats.sceneTimestamps[idx].scene &&
+            gPlayState->roomCtx.curRoom.num != gSaveContext.sohStats.sceneTimestamps[idx].room;
+        gSaveContext.sohStats.tsIdx++;
+        gSaveContext.sohStats.sceneTimer = 0;
+        gSaveContext.sohStats.roomTimer = 0;
+    } else if (gSaveContext.sohStats.roomNum != gPlayState->roomCtx.curRoom.num) {
+        u16 idx = gSaveContext.sohStats.tsIdx;
+        gSaveContext.sohStats.sceneTimestamps[idx].roomTime = gSaveContext.sohStats.roomTimer / 2;
+        gSaveContext.sohStats.sceneTimestamps[idx].scene = gSaveContext.sohStats.sceneNum;
+        gSaveContext.sohStats.sceneTimestamps[idx].room = gSaveContext.sohStats.roomNum;
+        gSaveContext.sohStats.sceneTimestamps[idx].isRoom = 
+            gPlayState->sceneNum == gSaveContext.sohStats.sceneTimestamps[idx].scene &&
+            gPlayState->roomCtx.curRoom.num != gSaveContext.sohStats.sceneTimestamps[idx].room;
+        gSaveContext.sohStats.tsIdx++;
+        gSaveContext.sohStats.roomTimer = 0;
+    }
+
+    gSaveContext.sohStats.sceneNum = gPlayState->sceneNum;
+    gSaveContext.sohStats.roomNum = gPlayState->roomCtx.curRoom.num;
     gSaveContext.respawnFlag = 0;
     #if 0
     if (dREG(95) != 0) {
@@ -642,6 +685,10 @@ void Play_Init(GameState* thisx) {
 
     if (CVar_GetS32("gSceneExitActors", 0)) {
         Actor_SpawnSceneExitActors(play);
+    if (CVarGetInteger("gIvanCoopModeEnabled", 0)) {
+        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_PARTNER, GET_PLAYER(play)->actor.world.pos.x,
+                    GET_PLAYER(play)->actor.world.pos.y + Player_GetHeight(GET_PLAYER(play)) + 5.0f,
+                    GET_PLAYER(play)->actor.world.pos.z, 0, 0, 0, 1, true);
     }
 }
 
@@ -677,7 +724,7 @@ void Play_Update(PlayState* play) {
         ActorOverlayTable_LogPrint();
     }
 
-    if (CVar_GetS32("gFreeCamera", 0) && Player_InCsMode(play)) {
+    if (CVarGetInteger("gFreeCamera", 0) && Player_InCsMode(play)) {
         play->manualCamera = false;
     }
 
@@ -688,6 +735,24 @@ void Play_Update(PlayState* play) {
     if (FrameAdvance_Update(&play->frameAdvCtx, &input[1])) {
         if ((play->transitionMode == 0) && (play->sceneLoadFlag != 0)) {
             play->transitionMode = 1;
+        }
+
+        // Gameplay stats: Count button presses
+        if (!gSaveContext.sohStats.gameComplete) {
+            if (CHECK_BTN_ALL(input[0].press.button, BTN_A))      {gSaveContext.sohStats.count[COUNT_BUTTON_PRESSES_A]++;}
+            if (CHECK_BTN_ALL(input[0].press.button, BTN_B))      {gSaveContext.sohStats.count[COUNT_BUTTON_PRESSES_B]++;}
+            if (CHECK_BTN_ALL(input[0].press.button, BTN_CUP))    {gSaveContext.sohStats.count[COUNT_BUTTON_PRESSES_CUP]++;}
+            if (CHECK_BTN_ALL(input[0].press.button, BTN_CRIGHT)) {gSaveContext.sohStats.count[COUNT_BUTTON_PRESSES_CRIGHT]++;}
+            if (CHECK_BTN_ALL(input[0].press.button, BTN_CLEFT))  {gSaveContext.sohStats.count[COUNT_BUTTON_PRESSES_CLEFT]++;}
+            if (CHECK_BTN_ALL(input[0].press.button, BTN_CDOWN))  {gSaveContext.sohStats.count[COUNT_BUTTON_PRESSES_CDOWN]++;}
+            if (CHECK_BTN_ALL(input[0].press.button, BTN_DUP))    {gSaveContext.sohStats.count[COUNT_BUTTON_PRESSES_DUP]++;}
+            if (CHECK_BTN_ALL(input[0].press.button, BTN_DRIGHT)) {gSaveContext.sohStats.count[COUNT_BUTTON_PRESSES_DRIGHT]++;}
+            if (CHECK_BTN_ALL(input[0].press.button, BTN_DDOWN))  {gSaveContext.sohStats.count[COUNT_BUTTON_PRESSES_DDOWN]++;}
+            if (CHECK_BTN_ALL(input[0].press.button, BTN_DLEFT))  {gSaveContext.sohStats.count[COUNT_BUTTON_PRESSES_DLEFT]++;}
+            if (CHECK_BTN_ALL(input[0].press.button, BTN_L))      {gSaveContext.sohStats.count[COUNT_BUTTON_PRESSES_L]++;}
+            if (CHECK_BTN_ALL(input[0].press.button, BTN_R))      {gSaveContext.sohStats.count[COUNT_BUTTON_PRESSES_R]++;}
+            if (CHECK_BTN_ALL(input[0].press.button, BTN_Z))      {gSaveContext.sohStats.count[COUNT_BUTTON_PRESSES_Z]++;}
+            if (CHECK_BTN_ALL(input[0].press.button, BTN_START))  {gSaveContext.sohStats.count[COUNT_BUTTON_PRESSES_START]++;}
         }
 
         if (gTrnsnUnkState != 0) {
@@ -750,21 +815,21 @@ void Play_Update(PlayState* play) {
                                                          play->transitionCtx.transitionType | 0x80);
                     }
 
-                    gSaveContext.unk_1419 = 14;
+                    gSaveContext.transWipeSpeed = 14;
                     if ((play->transitionCtx.transitionType == 8) ||
                         (play->transitionCtx.transitionType == 9)) {
-                        gSaveContext.unk_1419 = 28;
+                        gSaveContext.transWipeSpeed = 28;
                     }
 
-                    gSaveContext.fadeDuration = 60;
+                    gSaveContext.transFadeDuration = 60;
                     if ((play->transitionCtx.transitionType == 4) ||
                         (play->transitionCtx.transitionType == 5)) {
-                        gSaveContext.fadeDuration = 20;
+                        gSaveContext.transFadeDuration = 20;
                     } else if ((play->transitionCtx.transitionType == 6) ||
                                (play->transitionCtx.transitionType == 7)) {
-                        gSaveContext.fadeDuration = 150;
+                        gSaveContext.transFadeDuration = 150;
                     } else if (play->transitionCtx.transitionType == 17) {
-                        gSaveContext.fadeDuration = 2;
+                        gSaveContext.transFadeDuration = 2;
                     }
 
                     if ((play->transitionCtx.transitionType == 3) ||
@@ -839,11 +904,8 @@ void Play_Update(PlayState* play) {
                                 gTrnsnUnkState = 0;
                                 R_UPDATE_RATE = 3;
                             }
-
-                            // Don't autosave in grottos or cutscenes
-                            if (CVar_GetS32("gAutosave", 0) && (play->sceneNum != SCENE_YOUSEI_IZUMI_TATE) && (play->sceneNum != SCENE_KAKUSIANA) && (gSaveContext.cutsceneIndex == 0)) {
-                                Play_PerformSave(play);
-                            }
+                            
+                            GameInteractor_ExecuteOnTransitionEndHooks(play->sceneNum);
                         }
                         play->sceneLoadFlag = 0;
                     } else {
@@ -925,7 +987,7 @@ void Play_Update(PlayState* play) {
                     break;
 
                 case 11:
-                    if (gSaveContext.unk_1410 != 0) {
+                    if (gSaveContext.cutsceneTransitionControl != 0) {
                         play->transitionMode = 3;
                     }
                     break;
@@ -1000,9 +1062,9 @@ void Play_Update(PlayState* play) {
                     break;
 
                 case 17:
-                    if (gSaveContext.unk_1410 != 0) {
-                        play->envCtx.screenFillColor[3] = gSaveContext.unk_1410;
-                        if (gSaveContext.unk_1410 < 0x65) {
+                    if (gSaveContext.cutsceneTransitionControl != 0) {
+                        play->envCtx.screenFillColor[3] = gSaveContext.cutsceneTransitionControl;
+                        if (gSaveContext.cutsceneTransitionControl < 0x65) {
                             gTrnsnUnkState = 0;
                             R_UPDATE_RATE = 3;
                             play->sceneLoadFlag = 0;
@@ -1055,6 +1117,16 @@ void Play_Update(PlayState* play) {
                 }
 
                 play->gameplayFrames++;
+                // Gameplay stat tracking
+                if (!gSaveContext.sohStats.gameComplete) {
+                      gSaveContext.sohStats.playTimer++;
+                      gSaveContext.sohStats.sceneTimer++;
+                      gSaveContext.sohStats.roomTimer++;
+
+                      if (CVarGetInteger("gMMBunnyHood", 0) && Player_GetMask(play) == PLAYER_MASK_BUNNY) {
+                          gSaveContext.sohStats.count[COUNT_TIME_BUNNY_HOOD]++;
+                      }
+                }
 
                 func_800AA178(1);
 
@@ -1430,7 +1502,7 @@ void Play_Draw(PlayState* play) {
     gSPSegment(POLY_XLU_DISP++, 0x02, play->sceneSegment);
     gSPSegment(OVERLAY_DISP++, 0x02, play->sceneSegment);
 
-    func_80095248(gfxCtx, 0, 0, 0);
+    Gfx_SetupFrame(gfxCtx, 0, 0, 0);
 
     if ((HREG(80) != 10) || (HREG(82) != 0)) {
         POLY_OPA_DISP = Play_SetFog(play, POLY_OPA_DISP);
@@ -1463,7 +1535,7 @@ void Play_Draw(PlayState* play) {
 
             gfxP = Graph_GfxPlusOne(sp1CC);
             gSPDisplayList(OVERLAY_DISP++, gfxP);
-            gsSPGrayscale(gfxP++, false);
+            gSPGrayscale(gfxP++, false);
 
             if ((play->transitionMode == 3) || (play->transitionMode == 11) ||
                 (play->transitionCtx.transitionType >= 56)) {
@@ -1481,8 +1553,8 @@ void Play_Draw(PlayState* play) {
             TransitionFade_Draw(&play->transitionFade, &gfxP);
 
             if (D_801614B0.a > 0) {
-                gsDPSetGrayscaleColor(gfxP++, D_801614B0.r, D_801614B0.g, D_801614B0.b, D_801614B0.a);
-                gsSPGrayscale(gfxP++, true);
+                gDPSetGrayscaleColor(gfxP++, D_801614B0.r, D_801614B0.g, D_801614B0.b, D_801614B0.a);
+                gSPGrayscale(gfxP++, true);
             }
 
             gSPEndDisplayList(gfxP++);
@@ -1702,11 +1774,15 @@ time_t Play_GetRealTime() {
 void Play_Main(GameState* thisx) {
     PlayState* play = (PlayState*)thisx;
 
-    if (CVar_GetS32("gCheatEasyPauseBufferFrameAdvance", 0)) {
-        CVar_SetS32("gCheatEasyPauseBufferFrameAdvance", CVar_GetS32("gCheatEasyPauseBufferFrameAdvance", 0) - 1);
+    if (CVarGetInteger("gCheatEasyPauseBufferFrameAdvance", 0)) {
+        CVarSetInteger("gCheatEasyPauseBufferFrameAdvance", CVarGetInteger("gCheatEasyPauseBufferFrameAdvance", 0) - 1);
     }
-    if (CVar_GetS32("gPauseBufferBlockInputFrame", 0)) {
-        CVar_SetS32("gPauseBufferBlockInputFrame", CVar_GetS32("gPauseBufferBlockInputFrame", 0) - 1);
+    if (CVarGetInteger("gPauseBufferBlockInputFrame", 0)) {
+        CVarSetInteger("gPauseBufferBlockInputFrame", CVarGetInteger("gPauseBufferBlockInputFrame", 0) - 1);
+    }
+    if (play->envCtx.unk_EE[2] == 0 && CVarGetInteger("gLetItSnow", 0)) {
+        play->envCtx.unk_EE[3] = 64;
+        Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_OBJECT_KANKYO, 0, 0, 0, 0, 0, 0, 3, 0);
     }
 
     D_8012D1F8 = &play->state.input[0];
@@ -1754,7 +1830,7 @@ void Play_Main(GameState* thisx) {
         LOG_NUM("1", 1);
     }
     
-    if (CVar_GetS32("gTimeSync", 0)) {
+    if (CVarGetInteger("gTimeSync", 0)) {
         const int maxRealDaySeconds = 86400;
         const int maxInGameDayTicks = 65536;
 
@@ -1856,6 +1932,10 @@ void* Play_LoadFile(PlayState* play, RomFile* file) {
 }
 
 void Play_InitEnvironment(PlayState* play, s16 skyboxId) {
+    // For entrance rando, ensure the correct weather state and sky mode is applied
+    if (gSaveContext.n64ddFlag && Randomizer_GetSettingValue(RSK_SHUFFLE_ENTRANCES)) {
+        Entrance_OverrideWeatherState();
+    }
     Skybox_Init(&play->state, &play->skyboxCtx, skyboxId);
     Environment_Init(play, &play->envCtx, 0);
 }
@@ -1883,6 +1963,10 @@ void Play_InitScene(PlayState* play, s32 spawn)
 void Play_SpawnScene(PlayState* play, s32 sceneNum, s32 spawn) {
 
     OTRPlay_SpawnScene(play, sceneNum, spawn);
+
+    if (gSaveContext.n64ddFlag && Randomizer_GetSettingValue(RSK_SHUFFLE_ENTRANCES)) {
+        Entrance_OverrideSpawnScene(sceneNum, spawn);
+    }
 }
 
 void func_800C016C(PlayState* play, Vec3f* src, Vec3f* dest) {
@@ -2234,16 +2318,16 @@ void Play_PerformSave(PlayState* play) {
         gSaveContext.savedSceneNum = play->sceneNum;
         if (gSaveContext.temporaryWeapon) {
             gSaveContext.equips.buttonItems[0] = ITEM_NONE;
-            GET_PLAYER(play)->currentSwordItem = ITEM_NONE;
+            GET_PLAYER(play)->currentSwordItemId = ITEM_NONE;
             Inventory_ChangeEquipment(EQUIP_SWORD, PLAYER_SWORD_NONE);
             Save_SaveFile();
             gSaveContext.equips.buttonItems[0] = ITEM_SWORD_KOKIRI;
-            GET_PLAYER(play)->currentSwordItem = ITEM_SWORD_KOKIRI;
+            GET_PLAYER(play)->currentSwordItemId = ITEM_SWORD_KOKIRI;
             Inventory_ChangeEquipment(EQUIP_SWORD, PLAYER_SWORD_KOKIRI);
         } else {
             Save_SaveFile();
         }
-        if (CVar_GetS32("gAutosave", 0)) {
+        if (CVarGetInteger("gAutosave", 0)) {
             Overlay_DisplayText(3.0f, "Game Saved");
         }
     }

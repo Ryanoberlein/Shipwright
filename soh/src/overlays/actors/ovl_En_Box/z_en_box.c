@@ -1,5 +1,6 @@
 #include "z_en_box.h"
 #include "objects/object_box/object_box.h"
+#include "soh_assets.h"
 
 #define FLAGS 0
 
@@ -77,10 +78,15 @@ GetItemEntry sItem;
 Gfx gSkullTreasureChestChestSideAndLidDL[116] = {0};
 Gfx gGoldTreasureChestChestSideAndLidDL[116] = {0};
 Gfx gKeyTreasureChestChestSideAndLidDL[116] = {0};
+Gfx gChristmasRedTreasureChestChestSideAndLidDL[116] = {0};
+Gfx gChristmasGreenTreasureChestChestSideAndLidDL[116] = {0};
 Gfx gSkullTreasureChestChestFrontDL[128] = {0};
 Gfx gGoldTreasureChestChestFrontDL[128] = {0};
 Gfx gKeyTreasureChestChestFrontDL[128] = {0};
+Gfx gChristmasRedTreasureChestChestFrontDL[128] = {0};
+Gfx gChristmasGreenTreasureChestChestFrontDL[128] = {0};
 u8 hasCreatedRandoChestTextures = 0;
+u8 hasChristmasChestTexturesAvailable = 0;
 
 void EnBox_SetupAction(EnBox* this, EnBoxActionFunc actionFunc) {
     this->actionFunc = actionFunc;
@@ -371,7 +377,7 @@ void EnBox_AppearInit(EnBox* this, PlayState* play) {
         EnBox_SetupAction(this, EnBox_AppearAnimation);
         this->unk_1A8 = 0;
         Actor_Spawn(&play->actorCtx, play, ACTOR_DEMO_KANKYO, this->dyna.actor.home.pos.x,
-                    this->dyna.actor.home.pos.y, this->dyna.actor.home.pos.z, 0, 0, 0, 0x0011);
+                    this->dyna.actor.home.pos.y, this->dyna.actor.home.pos.z, 0, 0, 0, 0x0011, true);
         Audio_PlaySoundGeneral(NA_SE_EV_TRE_BOX_APPEAR, &this->dyna.actor.projectedPos, 4, &D_801333E0, &D_801333E0,
                                &D_801333E8);
     }
@@ -538,6 +544,7 @@ void EnBox_Open(EnBox* this, PlayState* play) {
 
         if (Animation_OnFrame(&this->skelanime, 30.0f)) {
             sfxId = NA_SE_EV_TBOX_UNLOCK;
+            gSaveContext.sohStats.count[COUNT_CHESTS_OPENED]++;
         } else if (Animation_OnFrame(&this->skelanime, 90.0f)) {
             sfxId = NA_SE_EV_TBOX_OPEN;
         }
@@ -624,12 +631,14 @@ void EnBox_Update(Actor* thisx, PlayState* play) {
 
 void EnBox_UpdateSizeAndTexture(EnBox* this, PlayState* play) {
     EnBox_CreateExtraChestTextures();
-    int cvar = CVar_GetS32("gChestSizeAndTextureMatchesContents", 0);
-    int agonyCVar = CVar_GetS32("gChestSizeDependsStoneOfAgony", 0);
-    int stoneCheck = CHECK_QUEST_ITEM(QUEST_STONE_OF_AGONY);
+    int cstmc = CVarGetInteger("gChestSizeAndTextureMatchesContents", 0);
+    int requiresStoneAgony = CVarGetInteger("gChestSizeDependsStoneOfAgony", 0);
     GetItemCategory getItemCategory;
 
-    if (play->sceneNum != SCENE_TAKARAYA && cvar > 0 && ((agonyCVar > 0 && stoneCheck) | agonyCVar == 0)) {
+    int isVanilla = cstmc == 0 || (requiresStoneAgony && !CHECK_QUEST_ITEM(QUEST_STONE_OF_AGONY)) ||
+        (play->sceneNum == SCENE_TAKARAYA && this->dyna.actor.room != 6); // Exclude treasure game chests except for the final room
+
+    if (!isVanilla) {
         getItemCategory = this->getItemEntry.getItemCategory;
         // If they don't have bombchu's yet consider the bombchu item major
         if (this->getItemEntry.gid == GID_BOMBCHU && INV_CONTENT(ITEM_BOMBCHU) != ITEM_BOMBCHU) {
@@ -645,7 +654,8 @@ void EnBox_UpdateSizeAndTexture(EnBox* this, PlayState* play) {
         }
     }
 
-    if (play->sceneNum != SCENE_TAKARAYA && (cvar == 1 || cvar == 3) && ((agonyCVar > 0 && stoneCheck) | agonyCVar == 0)) {
+    // Change size
+    if (!isVanilla && (cstmc == 1 || cstmc == 3)) {
         switch (getItemCategory) {
             case ITEM_CATEGORY_JUNK:
             case ITEM_CATEGORY_SMALL_KEY:
@@ -673,7 +683,8 @@ void EnBox_UpdateSizeAndTexture(EnBox* this, PlayState* play) {
         }
     }
 
-    if (play->sceneNum != SCENE_TAKARAYA && (cvar == 1 || cvar == 2) && ((agonyCVar > 0 && stoneCheck) | agonyCVar == 0)) {
+    // Change texture
+    if (!isVanilla && (cstmc == 1 || cstmc == 2)) {
         switch (getItemCategory) {
             case ITEM_CATEGORY_MAJOR:
                 this->boxBodyDL = gGoldTreasureChestChestFrontDL;
@@ -707,17 +718,61 @@ void EnBox_UpdateSizeAndTexture(EnBox* this, PlayState* play) {
             this->boxLidDL = gTreasureChestBossKeyChestSideAndTopDL;
         }
     }
+
+    if (CVarGetInteger("gLetItSnow", 0) && hasChristmasChestTexturesAvailable) {
+        if (this->dyna.actor.scale.x == 0.01f) {
+            this->boxBodyDL = gChristmasRedTreasureChestChestFrontDL;
+            this->boxLidDL = gChristmasRedTreasureChestChestSideAndLidDL;
+        } else {
+            this->boxBodyDL = gChristmasGreenTreasureChestChestFrontDL;
+            this->boxLidDL = gChristmasGreenTreasureChestChestSideAndLidDL;
+        }
+    }
+
+    // Chest Sizes Match Contents can make certain chests unreachable, so nudge
+    // the ones that cause problems.
+    // https://github.com/gamestabled/OoT3D_Randomizer/blob/68cf3f190d319e554bdeebc7f16e67578430dbc3/code/src/actors/chest.c#L57
+    s16 params = this->dyna.actor.params;
+    s16 sceneNum = play->sceneNum;
+    s16 room = this->dyna.actor.room;
+    s16 isLarge = this->dyna.actor.scale.x == 0.01f;
+
+    // Make Ganon's Castle Zelda's Lullaby chest reachable when large.
+    if ((params & 0xF000) == 0x8000 && sceneNum == SCENE_GANONTIKA && room == 9) {
+        this->dyna.actor.world.pos.z = isLarge ? -962.0f : -952.0f;
+    }
+
+    // Make MQ Deku Tree Song of Time chest reachable when large.
+    if (params == 0x5AA0 && sceneNum == SCENE_YDAN && room == 5) {
+        this->dyna.actor.world.pos.x = isLarge ? -1380.0f : -1376.0f;
+    }
+
+    // Make Ganon's Castle Gold Gauntlets chest reachable with hookshot from the
+    // switch platform when small.
+    if (params == 0x36C5 && sceneNum == SCENE_GANONTIKA && room == 12) {
+        this->dyna.actor.world.pos.x = isLarge ? 1757.0f : 1777.0f;
+        this->dyna.actor.world.pos.z = isLarge ? -3595.0f : -3626.0f;
+    }
+
+    // Make Spirit Temple Compass Chest reachable with hookshot when small.
+    if (params == 0x3804 && sceneNum == SCENE_JYASINZOU && room == 14) {
+        this->dyna.actor.world.pos.x = isLarge ? 358.0f : 400.0f;
+    }
 }
 
 void EnBox_CreateExtraChestTextures() {
     if (hasCreatedRandoChestTextures) return;
     Gfx gTreasureChestChestTextures[] = {
-        gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, ResourceMgr_LoadFileRaw("assets/objects/object_box/gSkullTreasureChestFrontTex")),
-        gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, ResourceMgr_LoadFileRaw("assets/objects/object_box/gSkullTreasureChestSideAndTopTex")),
-        gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, ResourceMgr_LoadFileRaw("assets/objects/object_box/gGoldTreasureChestFrontTex")),
-        gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, ResourceMgr_LoadFileRaw("assets/objects/object_box/gGoldTreasureChestSideAndTopTex")),
-        gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, ResourceMgr_LoadFileRaw("assets/objects/object_box/gKeyTreasureChestFrontTex")),
-        gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, ResourceMgr_LoadFileRaw("assets/objects/object_box/gKeyTreasureChestSideAndTopTex")),
+        gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, gSkullTreasureChestFrontTex),
+        gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, gSkullTreasureChestSideAndTopTex),
+        gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, gGoldTreasureChestFrontTex),
+        gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, gGoldTreasureChestSideAndTopTex),
+        gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, gKeyTreasureChestFrontTex),
+        gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, gKeyTreasureChestSideAndTopTex),
+        gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, gChristmasRedTreasureChestFrontTex),
+        gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, gChristmasRedTreasureChestSideAndTopTex),
+        gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, gChristmasGreenTreasureChestFrontTex),
+        gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, gChristmasGreenTreasureChestSideAndTopTex),
     };
 
     Gfx* frontCmd = ResourceMgr_LoadGfxByName(gTreasureChestChestFrontDL);
@@ -726,12 +781,16 @@ void EnBox_CreateExtraChestTextures() {
         gSkullTreasureChestChestFrontDL[frontIndex] = *frontCmd;
         gGoldTreasureChestChestFrontDL[frontIndex] = *frontCmd;
         gKeyTreasureChestChestFrontDL[frontIndex] = *frontCmd;
+        gChristmasRedTreasureChestChestFrontDL[frontIndex] = *frontCmd;
+        gChristmasGreenTreasureChestChestFrontDL[frontIndex] = *frontCmd;
         frontIndex++;
         ++frontCmd;
     }
     gSkullTreasureChestChestFrontDL[frontIndex] = *frontCmd;
     gGoldTreasureChestChestFrontDL[frontIndex] = *frontCmd;
     gKeyTreasureChestChestFrontDL[frontIndex] = *frontCmd;
+    gChristmasRedTreasureChestChestFrontDL[frontIndex] = *frontCmd;
+    gChristmasGreenTreasureChestChestFrontDL[frontIndex] = *frontCmd;
 
     gSkullTreasureChestChestFrontDL[5] = gTreasureChestChestTextures[0];
     gSkullTreasureChestChestFrontDL[23] = gTreasureChestChestTextures[1];
@@ -745,6 +804,14 @@ void EnBox_CreateExtraChestTextures() {
     gKeyTreasureChestChestFrontDL[23] = gTreasureChestChestTextures[5];
     gKeyTreasureChestChestFrontDL[37] = gTreasureChestChestTextures[4];
     gKeyTreasureChestChestFrontDL[50] = gTreasureChestChestTextures[5];
+    gChristmasRedTreasureChestChestFrontDL[5] = gTreasureChestChestTextures[6];
+    gChristmasRedTreasureChestChestFrontDL[23] = gTreasureChestChestTextures[7];
+    gChristmasRedTreasureChestChestFrontDL[37] = gTreasureChestChestTextures[6];
+    gChristmasRedTreasureChestChestFrontDL[50] = gTreasureChestChestTextures[7];
+    gChristmasGreenTreasureChestChestFrontDL[5] = gTreasureChestChestTextures[8];
+    gChristmasGreenTreasureChestChestFrontDL[23] = gTreasureChestChestTextures[9];
+    gChristmasGreenTreasureChestChestFrontDL[37] = gTreasureChestChestTextures[8];
+    gChristmasGreenTreasureChestChestFrontDL[50] = gTreasureChestChestTextures[9];
 
     Gfx* sideCmd = ResourceMgr_LoadGfxByName(gTreasureChestChestSideAndLidDL);
     int sideIndex = 0;
@@ -752,12 +819,16 @@ void EnBox_CreateExtraChestTextures() {
         gSkullTreasureChestChestSideAndLidDL[sideIndex] = *sideCmd;
         gGoldTreasureChestChestSideAndLidDL[sideIndex] = *sideCmd;
         gKeyTreasureChestChestSideAndLidDL[sideIndex] = *sideCmd;
+        gChristmasRedTreasureChestChestSideAndLidDL[sideIndex] = *sideCmd;
+        gChristmasGreenTreasureChestChestSideAndLidDL[sideIndex] = *sideCmd;
         sideIndex++;
         ++sideCmd;
     }
     gSkullTreasureChestChestSideAndLidDL[sideIndex] = *sideCmd;
     gGoldTreasureChestChestSideAndLidDL[sideIndex] = *sideCmd;
     gKeyTreasureChestChestSideAndLidDL[sideIndex] = *sideCmd;
+    gChristmasRedTreasureChestChestSideAndLidDL[sideIndex] = *sideCmd;
+    gChristmasGreenTreasureChestChestSideAndLidDL[sideIndex] = *sideCmd;
 
     gSkullTreasureChestChestSideAndLidDL[5] = gTreasureChestChestTextures[0];
     gSkullTreasureChestChestSideAndLidDL[29] = gTreasureChestChestTextures[1];
@@ -768,7 +839,14 @@ void EnBox_CreateExtraChestTextures() {
     gKeyTreasureChestChestSideAndLidDL[5] = gTreasureChestChestTextures[4];
     gKeyTreasureChestChestSideAndLidDL[29] = gTreasureChestChestTextures[5];
     gKeyTreasureChestChestSideAndLidDL[45] = gTreasureChestChestTextures[4];
+    gChristmasRedTreasureChestChestSideAndLidDL[5] = gTreasureChestChestTextures[6];
+    gChristmasRedTreasureChestChestSideAndLidDL[29] = gTreasureChestChestTextures[7];
+    gChristmasRedTreasureChestChestSideAndLidDL[45] = gTreasureChestChestTextures[6];
+    gChristmasGreenTreasureChestChestSideAndLidDL[5] = gTreasureChestChestTextures[8];
+    gChristmasGreenTreasureChestChestSideAndLidDL[29] = gTreasureChestChestTextures[9];
+    gChristmasGreenTreasureChestChestSideAndLidDL[45] = gTreasureChestChestTextures[8];
 
+    ResourceMgr_ListFiles("objects/object_box/gChristmas*", &hasChristmasChestTexturesAvailable);
     hasCreatedRandoChestTextures = 1;
 }
 
@@ -851,12 +929,12 @@ void EnBox_Draw(Actor* thisx, PlayState* play) {
         gDPPipeSync(POLY_OPA_DISP++);
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
         gSPSegment(POLY_OPA_DISP++, 0x08, EnBox_EmptyDList(play->state.gfxCtx));
-        func_80093D18(play->state.gfxCtx);
+        Gfx_SetupDL_25Opa(play->state.gfxCtx);
         POLY_OPA_DISP = SkelAnime_Draw(play, this->skelanime.skeleton, this->skelanime.jointTable, NULL,
                                        EnBox_PostLimbDraw, this, POLY_OPA_DISP);
     } else if (this->alpha != 0) {
         gDPPipeSync(POLY_XLU_DISP++);
-        func_80093D84(play->state.gfxCtx);
+        Gfx_SetupDL_25Xlu(play->state.gfxCtx);
         gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, this->alpha);
         if (this->type == ENBOX_TYPE_4 || this->type == ENBOX_TYPE_6) {
             gSPSegment(POLY_XLU_DISP++, 0x08, func_809CA518(play->state.gfxCtx));

@@ -120,6 +120,9 @@ namespace Logic {
   bool ShadowTrialClear = false;
   bool LightTrialClear  = false;
 
+  //Greg
+  bool Greg = false;
+
   //Progressive Items
   uint8_t ProgressiveBulletBag  = 0;
   uint8_t ProgressiveBombBag    = 0;
@@ -295,6 +298,7 @@ namespace Logic {
   bool HasAllStones          = false;
   bool HasAllMedallions      = false;
   bool CanBuildRainbowBridge = false;
+  bool BuiltRainbowBridge    = false;
   bool CanTriggerLACS        = false;
 
   //Other
@@ -781,7 +785,8 @@ namespace Logic {
                            (Bridge.Is(RAINBOWBRIDGE_MEDALLIONS) && MedallionCount >= BridgeMedallionCount.Value<uint8_t>())            ||
                            (Bridge.Is(RAINBOWBRIDGE_REWARDS)    && StoneCount + MedallionCount >= BridgeRewardCount.Value<uint8_t>())  ||
                            (Bridge.Is(RAINBOWBRIDGE_DUNGEONS)   && DungeonCount >= BridgeDungeonCount.Value<uint8_t>())                ||
-                           (Bridge.Is(RAINBOWBRIDGE_TOKENS)     && GoldSkulltulaTokens >= BridgeTokenCount.Value<uint8_t>());
+                           (Bridge.Is(RAINBOWBRIDGE_TOKENS)     && GoldSkulltulaTokens >= BridgeTokenCount.Value<uint8_t>()) ||
+                           (Bridge.Is(RAINBOWBRIDGE_GREG)       && Greg);
 
     CanTriggerLACS = (LACSCondition == LACSCONDITION_VANILLA    && ShadowMedallion && SpiritMedallion)                          ||
                      (LACSCondition == LACSCONDITION_STONES     && StoneCount >= LACSStoneCount.Value<uint8_t>())                    ||
@@ -998,6 +1003,9 @@ namespace Logic {
      ShadowTrialClear = false;
      LightTrialClear  = false;
 
+     //Greg
+     Greg = false;
+
      //Progressive Items
      ProgressiveBulletBag  = 0;
      ProgressiveBombBag    = 0;
@@ -1164,6 +1172,7 @@ namespace Logic {
      HasAllStones          = false;
      HasAllMedallions      = false;
      CanBuildRainbowBridge = false;
+     BuiltRainbowBridge    = false;
      CanTriggerLACS        = false;
 
      //Other

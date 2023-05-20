@@ -7,6 +7,7 @@
 #include "z_en_bom.h"
 #include "overlays/effects/ovl_Effect_Ss_Dead_Sound/z_eff_ss_dead_sound.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
+#include "soh/Enhancements/game-interactor/GameInteractor.h"
 
 #define FLAGS (ACTOR_FLAG_4 | ACTOR_FLAG_5)
 
@@ -96,14 +97,23 @@ void EnBom_Init(Actor* thisx, PlayState* play) {
     thisx->colChkInfo.mass = 200;
     thisx->colChkInfo.cylRadius = 5;
     thisx->colChkInfo.cylHeight = 10;
-    this->timer = 70;
+    if (!GameInteractor_GetRandomBombFuseTimerActive()) {
+        this->timer = 70;
+    } else {
+        // Set random fuse timer with a minimum of 10. Do the sound and scale immediately,
+        // otherwise the bomb is invisible until the timer hits the "normal" amount.
+        uint32_t randomTimer = (rand() % 150) + 10;
+        this->timer = randomTimer;
+        Audio_PlayActorSound2(thisx, NA_SE_PL_TAKE_OUT_SHIELD);
+        Actor_SetScale(thisx, 0.01f);
+    }
     this->flashSpeedScale = 7;
     Collider_InitCylinder(play, &this->bombCollider);
     Collider_InitJntSph(play, &this->explosionCollider);
     Collider_SetCylinder(play, &this->bombCollider, thisx, &sCylinderInit);
     Collider_SetJntSph(play, &this->explosionCollider, thisx, &sJntSphInit, &this->explosionColliderItems[0]);
     this->explosionColliderItems[0].info.toucher.damage += (thisx->shape.rot.z & 0xFF00) >> 8;
-    if (CVar_GetS32("gNutsExplodeBombs", 0)) {
+    if (CVarGetInteger("gNutsExplodeBombs", 0)) {
         this->bombCollider.info.bumper.dmgFlags |= 1;
     }
 
@@ -177,7 +187,13 @@ void EnBom_Explode(EnBom* this, PlayState* play) {
         func_800AA000(this->actor.xzDistToPlayer, 0xFF, 0x14, 0x96);
     }
 
-    this->explosionCollider.elements[0].dim.worldSphere.radius += this->actor.shape.rot.z + 8;
+    if (CVarGetInteger("gStaticExplosionRadius", 0)) {
+        //72 is the maximum radius of an OoT bomb explosion
+        this->explosionCollider.elements[0].dim.worldSphere.radius = 72;
+    } else {
+        this->explosionCollider.elements[0].dim.worldSphere.radius += this->actor.shape.rot.z + 8;
+    }
+        
 
     if (this->actor.params == BOMB_EXPLOSION) {
         CollisionCheck_SetAT(play, &play->colChkCtx, &this->explosionCollider.base);
@@ -238,7 +254,8 @@ void EnBom_Update(Actor* thisx, PlayState* play2) {
         this->timer--;
     }
 
-    if (this->timer == 67) {
+    // With random bomb fuse timer, sound effect and scaling is already done on init.
+    if (this->timer == 67 && !GameInteractor_GetRandomBombFuseTimerActive()) {
         Audio_PlayActorSound2(thisx, NA_SE_PL_TAKE_OUT_SHIELD);
         Actor_SetScale(thisx, 0.01f);
     }
@@ -366,7 +383,7 @@ void EnBom_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     if (thisx->params == BOMB_BODY) {
-        func_80093D18(play->state.gfxCtx);
+        Gfx_SetupDL_25Opa(play->state.gfxCtx);
         Matrix_ReplaceRotation(&play->billboardMtxF);
         func_8002EBCC(thisx, play, 0);
 
