@@ -9,6 +9,7 @@ typedef struct {
     /* 0x0C */ f32* freqScale;
     /* 0x10 */ f32* vol;
     /* 0x14 */ s8* reverbAdd;
+               u8 accessClass;
 } SoundRequest; // size = 0x18
 
 typedef struct {
@@ -32,18 +33,18 @@ s32 D_8013338C = 0;
 char D_80133390[] = "SEQ H";
 char D_80133398[] = "    L";
 
-SoundBankEntry D_8016BAD0[9];
-SoundBankEntry D_8016BC80[12];
-SoundBankEntry D_8016BEC0[22];
-SoundBankEntry D_8016C2E0[20];
-SoundBankEntry D_8016C6A0[8];
-SoundBankEntry D_8016C820[3];
-SoundBankEntry D_8016C8B0[5];
-SoundRequest sSoundRequests[0x100];
+SoundBankEntry D_8016BAD0[90];
+SoundBankEntry D_8016BC80[120];
+SoundBankEntry D_8016BEC0[220];
+SoundBankEntry D_8016C2E0[200];
+SoundBankEntry D_8016C6A0[80];
+SoundBankEntry D_8016C820[30];
+SoundBankEntry D_8016C8B0[50];
+SoundRequest sSoundRequests[0x200];
 u8 sSoundBankListEnd[7];
 u8 sSoundBankFreeListStart[7];
 u8 sSoundBankUnused[7];
-ActiveSound gActiveSounds[7][3];
+ActiveSound gActiveSounds[70][10];
 u8 sCurSfxPlayerChannelIdx;
 u8 gSoundBankMuted[7];
 UnusedBankLerp sUnusedBankLerp[7];
@@ -82,6 +83,13 @@ u16 D_801333D0 = 0;
 Vec3f D_801333D4 = { 0.0f, 0.0f, 0.0f }; // default pos
 
 f32 D_801333E0 = 1.0f; // default freqScale
+
+f32 D_1 = 1.0f;
+
+f32 pitchset[] = { 1.0f, 1.1f, 1.2f, 1.3f, 1.4f, 1.5f, 1.6f, 1.7f, 1.8f, 1.9f,
+                   2.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f };
+f32 volset[] = { 1.0f, 1.1f, 1.2f, 1.3f, 1.4f, 1.5f, 1.6f, 1.7f, 1.8f, 1.9f,
+                 2.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f };
 
 s32 D_801333E4 = 0; // unused
 
@@ -154,6 +162,43 @@ void Audio_PlaySoundGeneral(u16 sfxId, Vec3f* pos, u8 token, f32* freqScale, f32
         req->freqScale = freqScale;
         req->vol = vol;
         req->reverbAdd = reverbAdd;
+        req->accessClass = 0;
+        sSoundRequestWriteIndex++;
+    }
+}
+
+void Audio_PlaySoundGeneralAccess(u16 sfxId, Vec3f* pos, u8 token, f32* freqScale, f32* vol, s8* reverbAdd, u8 access) {
+    size_t i;
+    SoundRequest* req;
+
+    if (!gSoundBankMuted[SFX_BANK_SHIFT(sfxId)]) {
+        req = &sSoundRequests[sSoundRequestWriteIndex];
+        if (!gAudioSfxSwapOff) {
+            for (i = 0; i < 10; i++) {
+                if (sfxId == gAudioSfxSwapSource[i]) {
+                    if (gAudioSfxSwapMode[i] == 0) { // "SWAP"
+                        sfxId = gAudioSfxSwapTarget[i];
+                    } else { // "ADD"
+                        req->sfxId = gAudioSfxSwapTarget[i];
+                        req->pos = pos;
+                        req->token = token;
+                        req->freqScale = freqScale;
+                        req->vol = vol;
+                        req->reverbAdd = reverbAdd;
+                        sSoundRequestWriteIndex++;
+                        req = &sSoundRequests[sSoundRequestWriteIndex];
+                    }
+                    i = 10; // "break;"
+                }
+            }
+        }
+        req->sfxId = sfxId;
+        req->pos = pos;
+        req->token = token;
+        req->freqScale = freqScale;
+        req->vol = vol;
+        req->reverbAdd = reverbAdd;
+        req->accessClass = access;
         sSoundRequestWriteIndex++;
     }
 }
@@ -216,6 +261,7 @@ void Audio_ProcessSoundRequest(void)
     u8 evictImportance;
     u8 evictIndex;
 
+    
     req = &sSoundRequests[sSoundRequestReadIndex];
     evictIndex = 0x80;
     if (req->sfxId == 0) {
@@ -277,6 +323,7 @@ void Audio_ProcessSoundRequest(void)
                     gSoundBanks[bankId][index].reverbAdd = req->reverbAdd;
                     gSoundBanks[bankId][index].sfxParams = soundParams->params;
                     gSoundBanks[bankId][index].sfxImportance = soundParams->importance;
+                    gSoundBanks[bankId][index].accessClass = req->accessClass;
                 } else if (gSoundBanks[bankId][index].state == SFX_STATE_PLAYING_2) {
                     gSoundBanks[bankId][index].state = SFX_STATE_PLAYING_1;
                 }
@@ -303,6 +350,7 @@ void Audio_ProcessSoundRequest(void)
         entry->sfxId = req->sfxId;
         entry->state = SFX_STATE_QUEUED;
         entry->freshness = 2;
+        entry->accessClass = req->accessClass;
         entry->prev = sSoundBankListEnd[bankId];
         gSoundBanks[bankId][sSoundBankListEnd[bankId]].next = sSoundBankFreeListStart[bankId];
         sSoundBankListEnd[bankId] = sSoundBankFreeListStart[bankId];

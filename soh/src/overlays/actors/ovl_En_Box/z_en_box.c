@@ -65,6 +65,12 @@ const ActorInit En_Box_InitVars = {
     NULL,
 };
 
+static u16 sBreakSounds[] = { NA_SE_EV_ROCK_BROKEN, NA_SE_IT_WOODSTICK_BROKEN };
+
+static u8 sBreakSoundDurations[] = { 20, 6000 };
+
+static int secs = 0;
+
 static AnimationHeader* sAnimations[4] = { &gTreasureChestAnim_00024C, &gTreasureChestAnim_000128,
                                            &gTreasureChestAnim_00043C, &gTreasureChestAnim_00043C };
 
@@ -120,6 +126,7 @@ void EnBox_Init(Actor* thisx, PlayState* play2) {
     endFrame = Animation_GetLastFrame(anim);
     Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
 
+    
     DynaPolyActor_Init(&this->dyna, DPM_UNK);
     CollisionHeader_GetVirtual(&gTreasureChestCol, &colHeader);
     this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
@@ -410,7 +417,17 @@ void EnBox_WaitOpen(EnBox* this, PlayState* play) {
     s32 pad;
     Vec3f sp4C;
     Player* player;
+    int starttime;
+    int curtime;
+    curtime = clock();
 
+    if (curtime%1000 - curtime%100 == 0) {
+        SoundSource_PlaySfxAtFixedWorldPosPitch(play, &this->dyna.actor.world.pos, 60,
+                                                    NA_SE_EV_TBOX_UNLOCK, &pitchset[5], &volset[0], 1);
+    } 
+ 
+
+    //SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, sBreakSoundDurations[1], sBreakSounds[1]);
     this->alpha = 255;
     this->movementFlags |= ENBOX_MOVE_IMMOBILE;
     if (this->unk_1F4 != 0) { // unk_1F4 is modified by player code

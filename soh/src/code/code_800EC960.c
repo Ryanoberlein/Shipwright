@@ -3616,8 +3616,13 @@ f32 Audio_ComputeSoundVolume(u8 bankId, u8 entryIdx) {
     if (bankEntry->sfxParams & 0x2000) {
         return 1.0f;
     }
-
-    if (bankEntry->dist > 10000.0f) {
+    else if (bankEntry->accessClass == 1 && bankEntry->dist > 450.0f) {
+            ret = 0.0f;
+    } 
+    else if (bankEntry->accessClass == 2 && bankEntry->dist > 300.0f) {
+        ret = 0.0f;
+    }
+    else if (bankEntry->dist > 10000.0f) {
         ret = 0.0f;
     } else {
         switch (bankEntry->sfxParams & 3) {

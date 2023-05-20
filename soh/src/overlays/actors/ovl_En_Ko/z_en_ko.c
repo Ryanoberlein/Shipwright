@@ -30,6 +30,7 @@ void func_80A99504(EnKo* this, PlayState* play);
 void func_80A99560(EnKo* this, PlayState* play);
 
 s32 func_80A98ECC(EnKo* this, PlayState* play);
+int secsko = 0;
 
 const ActorInit En_Ko_InitVars = {
     ACTOR_EN_KO,
@@ -1282,7 +1283,21 @@ void EnKo_Update(Actor* thisx, PlayState* play) {
     ColliderCylinder* collider;
     EnKo* this = (EnKo*)thisx;
     s32 pad;
+    int curtime;
+    curtime = clock();
 
+    if (curtime % 1000 - curtime % 100 == 0) {
+
+        if (secsko == 5.0) {
+            SoundSource_PlaySfxAtFixedWorldPosPitch(play, &this->actor.world.pos, 60, NA_SE_VO_NB_LAUGH,
+                                                    &pitchset[1], &volset[0], 1);
+            secsko = 0.0;
+        }
+
+        else {
+            secsko += 1.0;
+        }
+    } 
     if (this->actionFunc != func_80A99048) {
         if ((s32)this->modelAlpha != 0) {
             gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->osAnimeBankIndex].segment);

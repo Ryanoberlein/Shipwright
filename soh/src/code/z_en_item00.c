@@ -20,6 +20,9 @@ void EnItem00_DrawCollectible(EnItem00* this, PlayState* play);
 void EnItem00_DrawHeartContainer(EnItem00* this, PlayState* play);
 void EnItem00_DrawHeartPiece(EnItem00* this, PlayState* play);
 
+int secsitem;
+
+
 const ActorInit En_Item00_InitVars = {
     ACTOR_EN_ITEM00,
     ACTORCAT_MISC,
@@ -740,7 +743,23 @@ void EnItem00_Update(Actor* thisx, PlayState* play) {
     u32* temp;
     EnItem00* this = (EnItem00*)thisx;
     s32 pad;
+    int curtime;
+    curtime = clock();
 
+    if (curtime % 1000 - curtime % 100 == 0) {
+
+        if (secsitem == 5.0) {
+            SoundSource_PlaySfxAtFixedWorldPosPitch(play, &this->actor.world.pos, 60,
+                                                    NA_SE_EN_NUTS_DAMAGE, // NA_SE_EV_HIT_SOUND (rupee mayube)
+                                                    &pitchset[5],
+                                                    &volset[0], 2);
+            secsitem = 0.0;
+        }
+
+        else {
+            secsitem += 1.0;
+        }
+    }
 	// OTRTODO: remove special case for bombchu when its 2D drop is implemented
     if (CVarGetInteger("gNewDrops", 0) || this->actor.params == ITEM00_BOMBCHU) { //set the rotation system on selected model only :)
         if ((this->actor.params == ITEM00_RUPEE_GREEN) || (this->actor.params == ITEM00_RUPEE_BLUE) ||

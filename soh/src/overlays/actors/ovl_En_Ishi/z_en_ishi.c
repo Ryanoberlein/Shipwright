@@ -31,6 +31,7 @@ void EnIshi_SpawnDustLarge(EnIshi* this, PlayState* play);
 
 s16 sRockRotSpeedX = 0;
 s16 sRockRotSpeedY = 0;
+int secsishi = 0;
 
 const ActorInit En_Ishi_InitVars = {
     ACTOR_EN_ISHI,
@@ -355,6 +356,23 @@ void EnIshi_Wait(EnIshi* this, PlayState* play) {
     static u16 liftSounds[] = { NA_SE_PL_PULL_UP_ROCK, NA_SE_PL_PULL_UP_BIGROCK };
     s32 pad;
     s16 type = this->actor.params & 1;
+    int curtime;
+    curtime = clock();
+
+    if (curtime % 1000 - curtime % 100 == 0) {
+
+        if (secsishi >= 3.0) {
+            SoundSource_PlaySfxAtFixedWorldPosPitch(play, &this->actor.world.pos, 60, NA_SE_EN_OCTAROCK_ROCK,
+                                                    &pitchset[10],
+                                                    &volset[18], 2);
+            secsishi = 0.0;
+        }
+
+        else {
+            secsishi += 1.0;
+        }
+    } 
+
 
     if (Actor_HasParent(&this->actor, play)) {
         EnIshi_SetupLiftedUp(this);

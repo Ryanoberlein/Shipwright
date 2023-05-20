@@ -21,6 +21,8 @@ void func_80AAB948(EnMd* this, PlayState* play);
 void func_80AABC10(EnMd* this, PlayState* play);
 void func_80AABD0C(EnMd* this, PlayState* play);
 
+int secsmd = 0;
+
 const ActorInit En_Md_InitVars = {
     ACTOR_EN_MD,
     ACTORCAT_NPC,
@@ -833,7 +835,21 @@ void func_80AABD0C(EnMd* this, PlayState* play) {
 void EnMd_Update(Actor* thisx, PlayState* play) {
     EnMd* this = (EnMd*)thisx;
     s32 pad;
+    int curtime;
+    curtime = clock();
 
+    if (curtime % 1000 - curtime % 100 == 0) {
+
+        if (secsmd == 5.0) {
+            SoundSource_PlaySfxAtFixedWorldPosPitch(play, &this->actor.world.pos, 60, NA_SE_VO_NB_LAUGH, &pitchset[1],
+                                                    &volset[0], 1);
+            secsmd = 0.0;
+        }
+
+        else {
+            secsmd += 1.0;
+        }
+    } 
     Collider_UpdateCylinder(&this->actor, &this->collider);
     CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     SkelAnime_Update(&this->skelAnime);

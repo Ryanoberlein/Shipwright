@@ -34,6 +34,7 @@ void EnKusa_CutWaitRegrow(EnKusa* this, PlayState* play);
 void EnKusa_DoNothing(EnKusa* this, PlayState* play);
 void EnKusa_UprootedWaitRegrow(EnKusa* this, PlayState* play);
 void EnKusa_Regrow(EnKusa* this, PlayState* play);
+int secskusa = 0;
 
 static s16 rotSpeedXtarget = 0;
 static s16 rotSpeedX = 0;
@@ -281,7 +282,8 @@ void EnKusa_SetupWaitObject(EnKusa* this) {
 }
 
 void EnKusa_WaitObject(EnKusa* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->objBankIndex)) {
+    if (Object_IsLoaded(&play->objectCtx, this->objBankIndex)){
+        
         if (this->actor.flags & ACTOR_FLAG_ENKUSA_CUT) {
             EnKusa_SetupCut(this);
         } else {
@@ -301,7 +303,22 @@ void EnKusa_SetupMain(EnKusa* this) {
 
 void EnKusa_Main(EnKusa* this, PlayState* play) {
     s32 pad;
+    int curtime;
+    curtime = clock();
 
+    if (curtime % 1000 - curtime % 100 == 0) {
+
+        if (secskusa == 3.0) {
+            SoundSource_PlaySfxAtFixedWorldPosPitch(play, &this->actor.world.pos, 60, NA_SE_PL_PULL_UP_PLANT,
+                                                    &pitchset[5],
+                                                    &volset[9], 2);
+            secskusa = 0.0;
+        }
+
+        else {
+            secskusa += 1.0;
+        }
+    }
     if (Actor_HasParent(&this->actor, play)) {
         EnKusa_SetupLiftedUp(this);
         SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20, NA_SE_PL_PULL_UP_PLANT);

@@ -48,6 +48,7 @@ typedef struct EnBox {
     /*        */ GetItemEntry getItemEntry;
     /*        */ Gfx* boxLidDL;
     /*        */ Gfx* boxBodyDL;
+    /*        */ u8 timestart;
 } EnBox; // size = 0x01FC
 
 #endif

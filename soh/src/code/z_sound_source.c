@@ -60,3 +60,38 @@ void SoundSource_PlaySfxAtFixedWorldPos(PlayState* play, Vec3f* worldPos, s32 du
     SkinMatrix_Vec3fMtxFMultXYZ(&play->viewProjectionMtxF, &source->worldPos, &source->projectedPos);
     Audio_PlaySoundGeneral(sfxId, &source->projectedPos, 4, &D_801333E0, &D_801333E0, &D_801333E8);
 }
+
+void SoundSource_PlaySfxAtFixedWorldPosPitch(PlayState* play, Vec3f* worldPos, s32 duration, u16 sfxId, f32* pitch, f32* volume, u8 accessClass) {
+    s32 countdown;
+    SoundSource* source;
+    s32 smallestCountdown = 0xFFFF;
+    SoundSource* backupSource;
+    s32 i;
+
+    source = &play->soundSources[0];
+    for (i = 0; i < ARRAY_COUNT(play->soundSources); i++) {
+        if (source->countdown == 0) {
+            break;
+        }
+
+        // Store the sound source with the smallest remaining countdown
+        countdown = source->countdown;
+        if (countdown < smallestCountdown) {
+            smallestCountdown = countdown;
+            backupSource = source;
+        }
+        source++;
+    }
+
+    // If no sound source is available, replace the sound source with the smallest remaining countdown
+    if (i >= ARRAY_COUNT(play->soundSources)) {
+        source = backupSource;
+        Audio_StopSfxByPos(&source->projectedPos);
+    }
+
+    source->worldPos = *worldPos;
+    source->countdown = duration;
+
+    SkinMatrix_Vec3fMtxFMultXYZ(&play->viewProjectionMtxF, &source->worldPos, &source->projectedPos);
+    Audio_PlaySoundGeneralAccess(sfxId, &source->projectedPos, 4, pitch, volume, &D_801333E8, accessClass);
+}

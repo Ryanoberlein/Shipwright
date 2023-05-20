@@ -74,6 +74,7 @@ void EnKanban_Init(Actor* thisx, PlayState* play);
 void EnKanban_Destroy(Actor* thisx, PlayState* play);
 void EnKanban_Update(Actor* thisx, PlayState* play);
 void EnKanban_Draw(Actor* thisx, PlayState* play);
+int secskanban = 0;
 
 const ActorInit En_Kanban_InitVars = {
     ACTOR_EN_KANBAN,
@@ -258,6 +259,22 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
     EnKanban* piece;
     Player* player = GET_PLAYER(play);
     Vec3f offset;
+    int curtime;
+    curtime = clock();
+
+    if (curtime % 1000 - curtime % 100 == 0) {
+
+        if (secskanban == 5.0) {
+            SoundSource_PlaySfxAtFixedWorldPosPitch(play, &this->actor.world.pos, 60, NA_SE_IT_REFLECTION_WOOD,
+                                                    &pitchset[6],
+                                                    &volset[0], 1);
+            secskanban = 0.0;
+        }
+
+        else {
+            secskanban += 1.0;
+        }
+    }
 
     this->frameCount++;
     switch (this->actionState) {

@@ -11,7 +11,7 @@
 
 #define IS_SEQUENCE_CHANNEL_VALID(ptr) ((uintptr_t)(ptr) != (uintptr_t)&gAudioContext.sequenceChannelNone)
 
-#define MAX_CHANNELS_PER_BANK 3
+#define MAX_CHANNELS_PER_BANK 10
 
 #define ADSR_DISABLE 0
 #define ADSR_HANG -1
@@ -1046,6 +1046,7 @@ typedef struct {
     /* 0x2D */ u8       next;
     /* 0x2E */ u8       channelIdx;
     /* 0x2F */ u8       unk_2F;
+               u8      accessClass;
 } SoundBankEntry; // size = 0x30
 
 /*

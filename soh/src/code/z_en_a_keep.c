@@ -20,6 +20,7 @@ void EnAObj_SetupWaitTalk(EnAObj* this, s16 type);
 void EnAObj_SetupBlockRot(EnAObj* this, s16 type);
 void EnAObj_SetupBoulderFragment(EnAObj* this, s16 type);
 void EnAObj_SetupBlock(EnAObj* this, s16 type);
+int secssignarrow = 0;
 
 const ActorInit En_A_Obj_InitVars = {
     ACTOR_EN_A_OBJ,
@@ -320,9 +321,23 @@ void EnAObj_Block(EnAObj* this, PlayState* play) {
 
 void EnAObj_Update(Actor* thisx, PlayState* play) {
     EnAObj* this = (EnAObj*)thisx;
-
+    int curtime;
     this->actionFunc(this, play);
     Actor_MoveForward(&this->dyna.actor);
+    curtime = clock();
+
+    if (curtime % 1000 - curtime % 100 == 0) {
+
+        if (secssignarrow == 5.0) {
+            SoundSource_PlaySfxAtFixedWorldPosPitch(play, &this->dyna.actor.world.pos, 60, NA_SE_IT_REFLECTION_WOOD,
+                                                    &pitchset[6], &volset[0], 1);
+            secssignarrow = 0.0;
+        }
+
+        else {
+            secssignarrow += 1.0;
+        }
+    }
 
     if (this->dyna.actor.gravity != 0.0f) {
         if (this->dyna.actor.params != A_OBJ_BOULDER_FRAGMENT) {
@@ -338,6 +353,8 @@ void EnAObj_Update(Actor* thisx, PlayState* play) {
     switch (this->dyna.actor.params) {
         case A_OBJ_SIGNPOST_OBLONG:
         case A_OBJ_SIGNPOST_ARROW:
+            
+            
             Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
             CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
             break;

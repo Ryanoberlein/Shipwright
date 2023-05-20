@@ -157,6 +157,9 @@ extern "C"
 	extern u8 gSfxChannelLayout;
 	extern Vec3f D_801333D4;
 	extern f32 D_801333E0;
+    extern f32 D_1; 
+	extern f32 pitchset[20];
+    extern f32 volset[20];
 	extern s8 D_801333E8;
 	extern u8 D_801333F0;
 	extern u8 gAudioSfxSwapOff;
@@ -217,7 +220,7 @@ extern "C"
 	extern volatile OSTime gRDPTotalTime;
 	extern FaultThreadStruct gFaultStruct;
 
-	extern ActiveSound gActiveSounds[7][MAX_CHANNELS_PER_BANK]; // total size = 0xA8
+	extern ActiveSound gActiveSounds[70][MAX_CHANNELS_PER_BANK]; // total size = 0xA8
 	extern u8 gSoundBankMuted[];
 	extern u8 D_801333F0;
 	extern u8 gAudioSfxSwapOff;

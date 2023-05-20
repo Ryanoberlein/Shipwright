@@ -16,6 +16,7 @@ void func_80AF67D0(EnSa* this, PlayState* play);
 void func_80AF683C(EnSa* this, PlayState* play);
 void func_80AF68E4(EnSa* this, PlayState* play);
 void func_80AF6B20(EnSa* this, PlayState* play);
+int secssa; 
 
 typedef enum {
     /* 0 */ SARIA_EYE_OPEN,
@@ -734,7 +735,21 @@ void func_80AF6B20(EnSa* this, PlayState* play) {
 void EnSa_Update(Actor* thisx, PlayState* play) {
     EnSa* this = (EnSa*)thisx;
     s32 pad;
+    int curtime;
+    curtime = clock();
 
+    if (curtime % 1000 - curtime % 100 == 0) {
+
+        if (secssa == 5.0) {
+            SoundSource_PlaySfxAtFixedWorldPosPitch(play, &this->actor.world.pos, 60, NA_SE_VO_NB_LAUGH, &pitchset[1],
+                                                    &volset[0], 1);
+            secssa = 0.0;
+        }
+
+        else {
+            secssa += 1.0;
+        }
+    } 
     Collider_UpdateCylinder(&this->actor, &this->collider);
     CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     SkelAnime_Update(&this->skelAnime);
