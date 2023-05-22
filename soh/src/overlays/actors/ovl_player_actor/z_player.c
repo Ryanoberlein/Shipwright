@@ -10971,6 +10971,9 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
 
     Collider_ResetQuadAC(play, &this->shieldQuad.base);
     Collider_ResetQuadAT(play, &this->shieldQuad.base);
+
+    Player_UpdateActorRadar(this, play);
+    //accessibility
 }
 
 static Vec3f D_80854838 = { 0.0f, 0.0f, -30.0f };

@@ -1305,6 +1305,31 @@ void Player_DrawGetItem(PlayState* play, Player* this) {
     }
 }
 
+
+void Player_UpdateActorRadar(Player* this, PlayState* play) {
+    static Actor* display;
+
+    for (int i = 0; i < 12; i++) {
+        ActorListEntry currList = gPlayState->actorCtx.actorLists[i];
+        Actor* currAct = currList.head;
+        if (currAct != NULL || currAct != ACTOR_PLAYER) {
+            while (currAct != NULL || currAct != ACTOR_PLAYER) {
+                if (Actor_WorldDistXYZToActor(this, currAct) < 200.0f &&
+                    Actor_WorldDistXYZToActor(this, currAct) > 100.0f) {
+                    SoundSource_PlaySfxAtFixedWorldPosPitch(play, &currAct->world.pos, 40, NA_SE_PL_PULL_UP_PLANT,
+                                                            &pitchset[5], &volset[0], 1);
+                }
+                currAct = currAct->next;
+            }
+        }
+        
+
+     
+    }
+
+    
+}
+
 void func_80090A28(Player* this, Vec3f* vecs) {
     D_8012608C.x = D_80126080.x;
 
